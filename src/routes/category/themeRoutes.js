@@ -1,5 +1,5 @@
 import express from "express"
-import { addTheme, getAllThemes, updateTheme, deleteTheme, getThemebySubSubcategoryId } from "../../controllers/Category/themeController.js"
+import { addTheme, getAllThemes, updateTheme, deleteTheme, getThemebySubSubcategoryId } from "../../controllers/category/themeController.js"
 import { adminauthenticateToken } from "../../middleware/admin/authMiddleware.js"
 import upload from "../../middleware/multer/multer.js"
 

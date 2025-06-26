@@ -6,7 +6,7 @@ import {
     deleteSubCategory,
     updatedSubcategory,
     searchSubCategory
-} from '../../controllers/Category/subCategoryController.js';
+} from '../../controllers/category/subCategoryController.js';
 
 import { adminauthenticateToken } from "../../middleware/admin/authMiddleware.js"
 

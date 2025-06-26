@@ -30,7 +30,7 @@ import {
   getSubSubCategoriesBySubCategory,
   updateSubSubCategory,
   deleteSubSubCategory
-} from "../../controllers/Category/subSubCategoryController.js";
+} from "../../controllers/category/subSubCategoryController.js";
 import { authenticateToken } from "../../middleware/authMiddleware.js";
 // import upload from "../../middleware/multer/multer.js";
 

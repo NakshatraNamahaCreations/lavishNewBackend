@@ -4,7 +4,7 @@ import {
   getAllBalloons,
   updateBalloon,
   deleteBalloon,
-} from "../../controllers/Category/BalloonsController.js";
+} from "../../controllers/category/BalloonsController.js";
 import { adminauthenticateToken } from "../../middleware/admin/authMiddleware.js";
 
 const router = express.Router();
