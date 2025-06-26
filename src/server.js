@@ -38,7 +38,7 @@ const PORT = process.env.PORT || 5000;
 
 app.use(cors({ 
     credentials: true, 
-    origin: ["https://lavisheventzz.com", "https://admin.lavisheventzz.com","http://localhost:5173", "http://localhost:5174"]
+    origin: ["https://lavisheventzz.com", "https://admin.lavisheventzz.com","http://localhost:5173", "http://localhost:5174", "https://api.lavisheventzz.com/api"]
 }));
 
 app.use(bodyParser.json());
