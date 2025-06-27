@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import Order from "../../models/order/Order.js";
 import Payment from "../../models/payment/Payment.js";
 import sendOrderConfirmation from "../../config/mailer.js";
+
 // Load environment variables from .env file
 dotenv.config();
 
@@ -231,6 +232,7 @@ router.post("/initiate-payment", async (req, res) => {
   }
 });
 
+
 // Endpoint to verify payment
 router.get("/verify-payment", async (req, res) => {
   console.log("Verify-payment endpoint hit:", {
@@ -404,21 +406,6 @@ router.get("/verify-payment", async (req, res) => {
   }
 });
 
-// router.get("/", async (req, res) => {
-//   try {
-//     const completedPayments = await Payment.find({}).populate("customerId", "email firstName lastName");
-//     res.json({
-//       success: true,
-//       data: completedPayments,
-//     });
-//   } catch (error) {
-//     res.status(500).json({
-//       success: false,
-//       error: `Failed to fetch completed payments: ${error.message}`,
-//     });
-//   }
-// });
-
 router.get("/", async (req, res) => {
   try {
     // Pagination
@@ -493,159 +480,4 @@ router.get("/", async (req, res) => {
     });
   }
 });
-
 export default router;
-
-// Endpoint to verify payment
-// router.get("/verify-payment", async (req, res) => {
-//   console.log("Verify-payment endpoint hit:", {
-//     query: req.query,
-//     timestamp: new Date().toISOString(),
-//   });
-
-//   const { orderId, customerId } = req.query;
-
-//   try {
-//     // Validate query parameters
-//     if (!orderId || !customerId) {
-//       console.error("Missing query parameters:", { orderId, customerId });
-//       return res.status(400).json({
-//         success: false,
-//         error: "Order ID and Customer ID are required.",
-//       });
-//     }
-
-//     // Find the order in the database
-//     const order = await Order.findOne({ orderId, customerId });
-//     if (!order) {
-//       console.error("Order not found:", { orderId, customerId });
-//       return res.status(404).json({
-//         success: false,
-//         error: "Order not found.",
-//       });
-//     }
-
-//     // Get access token
-//     const accessToken = await getAccessToken();
-//     console.log(
-//       "Access token for verification:",
-//       accessToken ? "Generated" : "Failed to generate"
-//     );
-
-//     // Construct the status check URL
-//     const statusUrl = `https://api.phonepe.com/apis/pg/checkout/v2/order/${orderId}/status`;
-//     console.log("Status check URL:", statusUrl);
-
-//     const config = {
-//       method: "get",
-//       url: statusUrl,
-//       headers: {
-//         "Content-Type": "application/json",
-//         Authorization: `O-Bearer ${accessToken}`, // Use O-Bearer as per documentation
-//         // Authorization: `Bearer ${accessToken}`, // Uncomment to test standard Bearer token
-//         // 'X-MERCHANT-ID': '<end-merchant-id>', // Uncomment and set if TSP/Partner
-//       },
-//     };
-
-//     // Log the full request configuration (redact sensitive data)
-//     console.log("Request configuration:", {
-//       url: config.url,
-//       method: config.method,
-//       headers: {
-//         ...config.headers,
-//         Authorization: "O-Bearer <redacted>",
-//       },
-//     });
-
-//     // Make request to PhonePe to check payment status
-//     const response = await axios.request(config);
-//     console.log(
-//       "PhonePe status response:",
-//       JSON.stringify(response.data, null, 2)
-//     );
-
-//     // Validate response structure
-//     if (!response.data || typeof response.data !== "object") {
-//       console.error("Invalid response structure from PhonePe:", response.data);
-//       return res.status(500).json({
-//         success: false,
-//         error: "Invalid response from payment gateway.",
-//       });
-//     }
-
-//     if (response.data.state === "COMPLETED") {
-//       await Order.findOneAndUpdate(
-//         { orderId, customerId },
-//         {
-//           paymentStatus: "PAID",
-//           updatedAt: new Date(),
-//         },
-//         { new: true }
-//       );
-
-//       const payment = new Payment({
-//         orderId,
-//         customerId,
-//         amount: order.grandTotal,
-//         status: "COMPLETED",
-//       });
-
-//       await payment.save();
-//       res.redirect(
-//         `https://lavisheventzz.com/payment/success?orderId=${orderId}`
-//       );
-//     } else {
-//       await Order.findByIdAndDelete(orderId);
-
-//       res.redirect(
-//         `https://lavisheventzz.com/payment/failure?orderId=${orderId}`
-//       );
-//     }
-
-//   } catch (error) {
-//     console.error("Payment verification error:", {
-//       message: error.message,
-//       response: error.response?.data,
-//       status: error.response?.status,
-//       request: {
-//         url: `https://api.phonepe.com/apis/pg/checkout/v2/order/${orderId}/status`,
-//         headers: {
-//           Authorization: "O-Bearer <redacted>",
-//           "Content-Type": "application/json",
-//         },
-//       },
-//       orderId,
-//       customerId,
-//     });
-
-//     // Handle specific error cases
-//     let statusCode = error.response?.status || 500;
-//     let errorMessage = `Payment verification failed: ${error.message}`;
-
-//     if (
-//       statusCode === 400 &&
-//       error.response?.data?.message === "Bad Request - Api Mapping Not Found"
-//     ) {
-//       errorMessage =
-//         "Invalid API endpoint or parameters. Check PhonePe API configuration and orderId.";
-//     } else if (statusCode === 401) {
-//       errorMessage =
-//         "Authentication failed with payment gateway. Check API credentials.";
-//     } else if (statusCode === 404) {
-//       errorMessage =
-//         "Payment status not found for the given order. Verify orderId.";
-//     }
-
-//     // Update order to reflect failure
-//     await Order.findOneAndUpdate(
-//       { orderId, customerId },
-//       { paymentStatus: "FAILED", updatedAt: new Date() },
-//       { new: true }
-//     );
-
-//     res.status(statusCode).json({
-//       success: false,
-//       error: errorMessage,
-//     });
-//   }
-// });

@@ -28,7 +28,7 @@ const sendOrderConfirmation = async (toEmail, order) => {
   const itemsList = items.map(item => `
     <li>
       <strong>${item.serviceName}</strong> - ₹${item.price}
-      ${item.image ? `<br><img src="${item.image}" alt="${item.serviceName}" style="width: 200px; height: 200px; object-fit: cover;"/>` : ''}
+      // ${item.image ? `<br><img src="${item.image}" alt="${item.serviceName}" style="width: 200px; height: 200px; object-fit: cover;"/>` : ''}
     </li>
   `).join('');
 
