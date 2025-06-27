@@ -137,11 +137,8 @@ const orderSchema = new mongoose.Schema({
     enum: ['PENDING', 'PAID', 'FAILED'],
     default: 'PENDING',
   },
-  // transactionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Payment' },
 
 }, { timestamps: true });
-
-
 
 const Order = mongoose.model('Order', orderSchema);
 

@@ -3,6 +3,7 @@ import Order from "../../models/order/Order.js"
 import Service from "../../models/serviceManagement/Service.js"
 import moment from 'moment';
 
+
 export const createOrder = async (req, res) => {
   try {
     console.log('Request Body:', req.body);
@@ -156,43 +157,6 @@ export const getUserPastOrders = async (req, res) => {
   }
 };
 
-// export const getUserUpcomingOrders = async (req, res) => {
-//   try {
-//     const { userId } = req.params;
-//     const now = moment();
-
-//     // Get all orders and filter manually based on combined datetime
-//     const allOrders = await Order.find({ customerId: userId });
-
-//     const upcomingOrders = allOrders.filter(order => {
-//       if (!order.eventDate || !order.eventTime) return false;
-
-//       // Combine eventDate and END time from eventTime range
-//       const [_, endTime] = order.eventTime.split(" - ");
-//       const combinedDateTime = moment(`${order.eventDate} ${endTime}`, "MMM DD, YYYY hh:mm A");
-
-//       return combinedDateTime.isSameOrAfter(now);
-//     });
-
-//     // Sort by eventDate ascending
-//     upcomingOrders.sort((a, b) =>
-//       moment(a.eventDate, "MMM DD, YYYY").toDate() - moment(b.eventDate, "MMM DD, YYYY").toDate()
-//     );
-
-//     res.status(200).json({
-//       success: true,
-//       data: upcomingOrders,
-//       length: upcomingOrders.length,
-//     });
-//   } catch (error) {
-//     console.error("Error fetching upcoming orders:", error);
-//     res.status(500).json({
-//       success: false,
-//       message: "Error fetching upcoming orders",
-//       error: error.message,
-//     });
-//   }
-// };
 
 
 export const getUserUpcomingOrders = async (req, res) => {
@@ -517,52 +481,6 @@ export const getRecentOrders = async (req, res) => {
 };
 
 
-// export const updateOrderStatus = async (req, res) => {
-//   try {
-//     const { orderId } = req.params;
-//     const { status, reason } = req.body;
-
-//     if (!orderId || !status) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Order ID and status are required"
-//       });
-//     }
-
-//     const order = await Order.findById(orderId);
-//     if (!order) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Order not found"
-//       });
-//     }
-
-//     // Update order status
-//     order.orderStatus = status;
-
-//     // If status is cancelled, add reason
-//     if (status === "cancelled" && reason) {
-//       order.reason = reason;
-//     }
-
-//     await order.save();
-
-//     return res.status(200).json({
-//       success: true,
-//       message: "Order status updated successfully",
-//       order
-//     });
-
-//   } catch (error) {
-//     console.error("Error updating order status:", error);
-//     return res.status(500).json({
-//       success: false,
-//       message: "Failed to update order status",
-//       error: error.message
-//     });
-//   }
-// };
-
 
 export const updateOrderStatus = async (req, res) => {
   try {
@@ -688,6 +606,91 @@ export const getRecentOrdersByUser = async (req, res) => {
 
 
 
+// export const getUserUpcomingOrders = async (req, res) => {
+//   try {
+//     const { userId } = req.params;
+//     const now = moment();
+
+//     // Get all orders and filter manually based on combined datetime
+//     const allOrders = await Order.find({ customerId: userId });
+
+//     const upcomingOrders = allOrders.filter(order => {
+//       if (!order.eventDate || !order.eventTime) return false;
+
+//       // Combine eventDate and END time from eventTime range
+//       const [_, endTime] = order.eventTime.split(" - ");
+//       const combinedDateTime = moment(`${order.eventDate} ${endTime}`, "MMM DD, YYYY hh:mm A");
+
+//       return combinedDateTime.isSameOrAfter(now);
+//     });
+
+//     // Sort by eventDate ascending
+//     upcomingOrders.sort((a, b) =>
+//       moment(a.eventDate, "MMM DD, YYYY").toDate() - moment(b.eventDate, "MMM DD, YYYY").toDate()
+//     );
+
+//     res.status(200).json({
+//       success: true,
+//       data: upcomingOrders,
+//       length: upcomingOrders.length,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching upcoming orders:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Error fetching upcoming orders",
+//       error: error.message,
+//     });
+//   }
+// };
 
 
 
+
+
+
+// export const updateOrderStatus = async (req, res) => {
+//   try {
+//     const { orderId } = req.params;
+//     const { status, reason } = req.body;
+
+//     if (!orderId || !status) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Order ID and status are required"
+//       });
+//     }
+
+//     const order = await Order.findById(orderId);
+//     if (!order) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Order not found"
+//       });
+//     }
+
+//     // Update order status
+//     order.orderStatus = status;
+
+//     // If status is cancelled, add reason
+//     if (status === "cancelled" && reason) {
+//       order.reason = reason;
+//     }
+
+//     await order.save();
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "Order status updated successfully",
+//       order
+//     });
+
+//   } catch (error) {
+//     console.error("Error updating order status:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to update order status",
+//       error: error.message
+//     });
+//   }
+// };
