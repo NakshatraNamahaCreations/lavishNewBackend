@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import Order from "../../models/order/Order.js";
 import Payment from "../../models/payment/Payment.js";
 import sendOrderConfirmation from "../../config/mailer.js";
+import {notifyBooking} from "../../services/eventNotification.js"
 
 // Load environment variables from .env file
 dotenv.config();
@@ -232,7 +233,6 @@ router.post("/initiate-payment", async (req, res) => {
   }
 });
 
-
 // Endpoint to verify payment
 router.get("/verify-payment", async (req, res) => {
   console.log("Verify-payment endpoint hit:", {
@@ -350,6 +350,16 @@ router.get("/verify-payment", async (req, res) => {
           orderId,
           customerId,
         });
+      }
+
+      // ✅ 📱 Send WhatsApp Booking Confirmation
+      try {
+        await notifyBooking(populatedOrder); 
+      } catch (whatsappError) {
+        console.error(
+          "Failed to send WhatsApp message:",
+          whatsappError.message
+        );
       }
 
       res.redirect(

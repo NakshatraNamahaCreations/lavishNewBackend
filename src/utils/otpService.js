@@ -9,7 +9,7 @@ export const sendOtpToMobile = async (mobile, otp) => {
   const params = {
     recipient: `91${mobile}`,
     sender_id: "NSKFST",
-    message: `Dear User, Your login OTP is ${otp}. Valid for 10 mins. Dont share with anyone. Lavish Eventzz Thank you Call support for help -Nashik First`,
+    message: `Dear User, Your login OTP is ${otp}. Valid for 10 mins. Dont share with anyone. Lavish Eventzz Thank you Call support for help - +91 96205 58000`,
     api_token: "67|6uxJLrpbkzHRTEGpe9I8inl2dgUx6hpaiN7ocFGS40823a6d",
     dlt_template_id: "1207162399931698582",
     type: "plain",
