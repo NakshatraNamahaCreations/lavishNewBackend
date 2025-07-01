@@ -1,7 +1,9 @@
 // controllers/orderController.js
 import Order from "../../models/order/Order.js"
 import Service from "../../models/serviceManagement/Service.js"
+import Payment from "../../models/payment/Payment.js";
 import moment from 'moment';
+import {notifyEventUpdate} from "../../services/eventNotification.js"
 
 
 export const createOrder = async (req, res) => {
@@ -480,12 +482,86 @@ export const getRecentOrders = async (req, res) => {
   }
 };
 
+// export const updateOrderStatus = async (req, res) => {
+//   try {
+//     const { orderId } = req.params;
+//     const {
+//       status,
+//       reason,
+//       rescheduledDate,
+//       rescheduledTime,
+//       rescheduledAddress
+//     } = req.body;
 
+//     if (!orderId || !status) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Order ID and status are required"
+//       });
+//     }
+
+//     // ✅ Populate customerId for WhatsApp
+//     const order = await Order.findById(orderId).populate("customerId");
+
+//     if (!order) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Order not found"
+//       });
+//     }
+
+//     order.orderStatus = status;
+
+//     if (status === "rescheduled") {
+//       if (reason) order.reason = reason;
+//       if (rescheduledDate) order.rescheduledEventDate = rescheduledDate;
+//       order.rescheduledEventTime = rescheduledTime || order.eventTime;
+//       if (rescheduledAddress) order.rescheduledAddress = rescheduledAddress;
+//     } else if (status === "cancelled") {
+//       if (reason) order.reason = reason;
+//     }
+
+//     await order.save();
+
+//     // ✅ Update payment status if order is cancelled
+//     if (status === "cancelled") {
+//       await Payment.updateOne(
+//         { orderId: order.orderId }, // assuming orderId is a string field in Payment
+//         { $set: { status: "CANCELLED" } }
+//       );
+//     }
+
+//     // ✅ Send WhatsApp message after status update
+//     if (status === "cancelled" || status === "rescheduled") {
+//       await notifyEventUpdate(order, status);
+//     }
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "Order status updated successfully",
+//       order
+//     });
+
+//   } catch (error) {
+//     console.error("Error updating order status:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to update order status",
+//       error: error.message
+//     });
+//   }
+// };
 
 export const updateOrderStatus = async (req, res) => {
   try {
     const { orderId } = req.params;
-    const { status, reason, rescheduledDate, rescheduledTime, rescheduledAddress } = req.body;
+    const {
+      status,
+      reason,
+      rescheduledDate,
+      rescheduledTime,
+      rescheduledAddress
+    } = req.body;
 
     if (!orderId || !status) {
       return res.status(400).json({
@@ -494,7 +570,9 @@ export const updateOrderStatus = async (req, res) => {
       });
     }
 
-    const order = await Order.findById(orderId);
+    // ✅ Fetch order with customer details
+    const order = await Order.findById(orderId).populate("customerId");
+
     if (!order) {
       return res.status(404).json({
         success: false,
@@ -502,19 +580,62 @@ export const updateOrderStatus = async (req, res) => {
       });
     }
 
-    // Update order status
-    order.orderStatus = status;
-
+    // ✅ Handle rescheduled logic
     if (status === "rescheduled") {
-      if (reason) order.reason = reason;
+      if (!reason) {
+        return res.status(400).json({
+          success: false,
+          message: "Reason is required for rescheduling."
+        });
+      }
+
+      // Ensure at least one reschedule field is present
+      const hasRescheduleInfo = rescheduledDate || rescheduledTime || rescheduledAddress;
+      if (!hasRescheduleInfo) {
+        return res.status(400).json({
+          success: false,
+          message: "At least one of rescheduledDate, rescheduledTime, or rescheduledAddress is required."
+        });
+      }
+
+      order.orderStatus = status;
+      order.reason = reason;
+
       if (rescheduledDate) order.rescheduledEventDate = rescheduledDate;
-      order.rescheduledEventTime = rescheduledTime ? rescheduledTime : order.eventTime;
+      if (rescheduledTime) order.rescheduledEventTime = rescheduledTime;
       if (rescheduledAddress) order.rescheduledAddress = rescheduledAddress;
-    } else if (status === "cancelled") {
-      if (reason) order.reason = reason;
+    }
+
+    // ✅ Handle cancelled logic
+    else if (status === "cancelled") {
+      if (!reason) {
+        return res.status(400).json({
+          success: false,
+          message: "Reason is required for cancellation."
+        });
+      }
+
+      order.orderStatus = status;
+      order.reason = reason;
+
+      // Also cancel associated payment if any
+      await Payment.updateOne(
+        { orderId: order.orderId },
+        { $set: { status: "CANCELLED" } }
+      );
+    }
+
+    // If it's another status update (e.g., confirmed, completed)
+    else {
+      order.orderStatus = status;
     }
 
     await order.save();
+
+    // ✅ Notify customer if it's a significant status
+    if (["cancelled", "rescheduled"].includes(status)) {
+      await notifyEventUpdate(order, status);
+    }
 
     return res.status(200).json({
       success: true,
@@ -531,6 +652,7 @@ export const updateOrderStatus = async (req, res) => {
     });
   }
 };
+
 
 export const getRecentOrdersByUser = async (req, res) => {
   try {
@@ -604,93 +726,40 @@ export const getRecentOrdersByUser = async (req, res) => {
 };
 
 
+// ✅ API: Monthly Services Sold (only for completed events)
+export const monthlyServicesSold = async (req, res) => {
+  try {
+    const year = new Date().getFullYear();
+
+    const data = await Order.aggregate([
+      {
+        $match: {
+          orderStatus: "completed",
+          createdAt: {
+            $gte: new Date(`${year}-01-01`),
+            $lte: new Date(`${year}-12-31`),
+          },
+        },
+      },
+      {
+        $group: {
+          _id: { $month: "$createdAt" },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { "_id": 1 } },
+    ]);
+
+    const monthlyServicesSold = Array.from({ length: 12 }, (_, i) => {
+      const monthData = data.find((d) => d._id === i + 1);
+      return monthData ? monthData.count : 0;
+    });
+
+    return res.json({ success: true, monthlyServicesSold });
+  } catch (err) {
+    console.error("Error fetching services sold:", err);
+    res.status(500).json({ success: false, message: "Failed to fetch services sold" });
+  }
+};
 
 
-// export const getUserUpcomingOrders = async (req, res) => {
-//   try {
-//     const { userId } = req.params;
-//     const now = moment();
-
-//     // Get all orders and filter manually based on combined datetime
-//     const allOrders = await Order.find({ customerId: userId });
-
-//     const upcomingOrders = allOrders.filter(order => {
-//       if (!order.eventDate || !order.eventTime) return false;
-
-//       // Combine eventDate and END time from eventTime range
-//       const [_, endTime] = order.eventTime.split(" - ");
-//       const combinedDateTime = moment(`${order.eventDate} ${endTime}`, "MMM DD, YYYY hh:mm A");
-
-//       return combinedDateTime.isSameOrAfter(now);
-//     });
-
-//     // Sort by eventDate ascending
-//     upcomingOrders.sort((a, b) =>
-//       moment(a.eventDate, "MMM DD, YYYY").toDate() - moment(b.eventDate, "MMM DD, YYYY").toDate()
-//     );
-
-//     res.status(200).json({
-//       success: true,
-//       data: upcomingOrders,
-//       length: upcomingOrders.length,
-//     });
-//   } catch (error) {
-//     console.error("Error fetching upcoming orders:", error);
-//     res.status(500).json({
-//       success: false,
-//       message: "Error fetching upcoming orders",
-//       error: error.message,
-//     });
-//   }
-// };
-
-
-
-
-
-
-// export const updateOrderStatus = async (req, res) => {
-//   try {
-//     const { orderId } = req.params;
-//     const { status, reason } = req.body;
-
-//     if (!orderId || !status) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Order ID and status are required"
-//       });
-//     }
-
-//     const order = await Order.findById(orderId);
-//     if (!order) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Order not found"
-//       });
-//     }
-
-//     // Update order status
-//     order.orderStatus = status;
-
-//     // If status is cancelled, add reason
-//     if (status === "cancelled" && reason) {
-//       order.reason = reason;
-//     }
-
-//     await order.save();
-
-//     return res.status(200).json({
-//       success: true,
-//       message: "Order status updated successfully",
-//       order
-//     });
-
-//   } catch (error) {
-//     console.error("Error updating order status:", error);
-//     return res.status(500).json({
-//       success: false,
-//       message: "Failed to update order status",
-//       error: error.message
-//     });
-//   }
-// };

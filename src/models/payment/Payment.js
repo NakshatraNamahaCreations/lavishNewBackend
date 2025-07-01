@@ -6,14 +6,13 @@ const paymentSchema = new mongoose.Schema(
     orderId: {
       type: String,
       required: true,
-      unique: true, // Ensures that each order has a unique payment entry
+      unique: true, 
     },
     customerId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User", // Assuming you have a 'User' model for customers
+      ref: "User", 
       required: true,
     },
-    // transactionId: { type: String },
     amount: {
       type: Number,
       required: true,
@@ -23,10 +22,10 @@ const paymentSchema = new mongoose.Schema(
     },
 
   },
-  { timestamps: true } // Add createdAt and updatedAt fields automatically
+  { timestamps: true } 
 );
 
-// Create a model from the schema
+
 const Payment = mongoose.model("Payment", paymentSchema);
 
 export default Payment;
