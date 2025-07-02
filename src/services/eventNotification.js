@@ -1,7 +1,7 @@
 import {
   sendWhatsappMessage,
   sendWhatsappImage,
-} from "../utils/sendWhatsapp.js"; 
+} from "../utils/sendWhatsapp.js";
 
 export const notifyBooking = async (order) => {
   if (!order?.customerId?.mobile) {
@@ -101,6 +101,39 @@ We’re all set to celebrate with you! 🎈
 };
 
 // // Send Completion Message
+// export const notifyEventCompleted = async (order) => {
+//   const { customerId, customerName, orderId } = order;
+
+//   if (!customerId || !customerId.mobile) {
+//     console.warn("⚠️ Skipping completion message: customer mobile not found.");
+//     return;
+//   }
+
+//   const mobile = customerId.mobile;
+//   const serviceItem = order.items.find(
+//     (item) => item.categoryType === "Service"
+//   );
+//   const serviceName =
+//     serviceItem?.serviceName || "your event";
+
+//     const reviewLink = `https://lavisheventzz.com/service/details/${serviceItem?.refId}`
+
+//   const msg = `Hi ${customerName},
+
+// We hope you had a fantastic time at your *${serviceName}*! 🎉
+
+// We’d love to hear your thoughts and see your celebration moments 🥳
+// Please take a moment to share your experience.
+
+// – Lavish Eventzz 💖`;
+
+//   await sendWhatsappMessage(mobile, msg, {
+//     orderId,
+//     type: "completed",
+//   });
+// };
+
+// Send Completion Message
 export const notifyEventCompleted = async (order) => {
   const { customerId, customerName, orderId } = order;
 
@@ -113,21 +146,23 @@ export const notifyEventCompleted = async (order) => {
   const serviceItem = order.items.find(
     (item) => item.categoryType === "Service"
   );
-  const serviceName =
-    serviceItem?.serviceName || "your event";
+  const serviceName = serviceItem?.serviceName || "your event";
+  const reviewLink = `https://lavisheventzz.com/service/details/${serviceItem?.refId}`;
 
   const msg = `Hi ${customerName},
 
 We hope you had a fantastic time at your *${serviceName}*! 🎉
 
 We’d love to hear your thoughts and see your celebration moments 🥳  
-Please take a moment to share your experience.
+Please take a moment to share your experience:
+${reviewLink}
 
 – Lavish Eventzz 💖`;
 
   await sendWhatsappMessage(mobile, msg, {
     orderId,
     type: "completed",
+    reviewLink, // also pass as meta if needed
   });
 };
 
@@ -188,7 +223,9 @@ export const notifyEventUpdate = async (order, status) => {
 
 Hi ${customerName},
 
-Your *${serviceItems[0].serviceName || "event"}* with *Order ID: ${orderId}* has been *cancelled*.
+Your *${
+      serviceItems[0].serviceName || "event"
+    }* with *Order ID: ${orderId}* has been *cancelled*.
 
 🗓️ Date: ${eventDate}
 ⏰ Time: ${eventTime}
@@ -209,7 +246,9 @@ Please contact our support team for any clarification.
 
 Hi ${customerName},
 
-Your *${serviceItems[0].serviceName  || "event"}* with *Order ID: ${orderId}* has been *rescheduled*.
+Your *${
+      serviceItems[0].serviceName || "event"
+    }* with *Order ID: ${orderId}* has been *rescheduled*.
 
 🆕 *New Event Details*:
 🗓️ Date: ${finalDate}
