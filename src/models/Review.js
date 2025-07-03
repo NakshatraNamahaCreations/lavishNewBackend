@@ -23,7 +23,7 @@ const reviewSchema = new mongoose.Schema({
   },
   images: [
     {
-      type: String, // store image URLs or paths
+      type: String, 
     },
   ],
   createdAt: {

@@ -1,4 +1,3 @@
-
 import mongoose from "mongoose";
 
 const ServiceSchema = new mongoose.Schema(
@@ -67,6 +66,11 @@ const ServiceSchema = new mongoose.Schema(
     images: {
       type: [String],
       default: [],
+    },
+    rating: {
+      type: Number,
+      min: 1,
+      max: 5,
     },
   },
   { timestamps: true }

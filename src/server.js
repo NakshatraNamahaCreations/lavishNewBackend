@@ -27,7 +27,7 @@ import wishlistRoutes from "./routes/wishlistRoutes.js";
 import enquiryRoutes from "./routes/enquiry/enquiryRoutes.js";
 import ticketRoutes from "./routes/ticketRoutes.js";
 import phonepeRoutes from "./routes/payment/phonepeRoutes.js";
-
+import emailRoutes from "./routes/email.js"
 dotenv.config();
 connectDB();
 
@@ -74,6 +74,7 @@ app.use("/api/wishlist", wishlistRoutes);
 app.use("/api/enquiries", enquiryRoutes);
 app.use("/api/tickets", ticketRoutes);
 app.use("/api/payment", phonepeRoutes);
+app.use('/api', emailRoutes);
 
 // Root
 app.get("/", (req, res) => res.send("🚀 Lavish Events Auth Server Running!"));
