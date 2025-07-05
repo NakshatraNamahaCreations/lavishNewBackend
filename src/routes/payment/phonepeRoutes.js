@@ -14,6 +14,26 @@ dotenv.config();
 const router = express.Router();
 
 
+const getNextOrderId = async () => {
+  try {
+    // Find the most recent order based on orderId, sorted in descending order
+    const latestOrder = await Order.findOne().sort({ orderId: -1 });
+
+    // If no orders exist, start with "ORD0001"
+    const lastOrderNum = latestOrder ? parseInt(latestOrder.orderId.slice(3), 10) : 0;
+
+    // Increment the order number
+    const nextOrderNum = lastOrderNum + 1;
+
+    // Return the new orderId, padded with leading zeros to 4 digits
+    return `ORD${nextOrderNum.toString().padStart(4, "0")}`;
+  } catch (error) {
+    console.error("Error generating order ID:", error);
+    throw new Error("Error generating order ID");
+  }
+};
+
+
 // PhonePe API credentials
 const CLIENT_ID = process.env.CLIENT_ID || "SU2506192241154959940199";
 const CLIENT_SECRET =
@@ -75,7 +95,6 @@ async function getAccessToken() {
 router.post("/initiate-payment", async (req, res) => {
   try {
     const {
-      orderId,
       eventDate,
       eventTime,
       pincode,
@@ -102,7 +121,6 @@ router.post("/initiate-payment", async (req, res) => {
 
     // Validate required fields
     if (
-      !orderId ||
       !eventDate ||
       !eventTime ||
       !pincode ||
@@ -116,7 +134,6 @@ router.post("/initiate-payment", async (req, res) => {
       return res.status(400).json({
         message: "Missing required fields",
         required: {
-          orderId: !orderId,
           eventDate: !eventDate,
           eventTime: !eventTime,
           pincode: !pincode,
@@ -130,6 +147,9 @@ router.post("/initiate-payment", async (req, res) => {
       });
     }
 
+      // Generate orderId on the backend
+    const orderId = await getNextOrderId(); // Generate unique orderId
+
     // Ensure each item has customizedInputs (default to empty array if not provided)
     const processedItems = items.map((item) => ({
       ...item,
@@ -139,7 +159,7 @@ router.post("/initiate-payment", async (req, res) => {
     }));
 
     const order = new Order({
-      orderId,
+      orderId,  // Use the backend generated orderId
       eventDate,
       eventTime,
       pincode,

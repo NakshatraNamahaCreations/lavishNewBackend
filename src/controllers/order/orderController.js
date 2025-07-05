@@ -3,7 +3,7 @@ import Order from "../../models/order/Order.js"
 import Service from "../../models/serviceManagement/Service.js"
 import Payment from "../../models/payment/Payment.js";
 import moment from 'moment';
-import {notifyEventUpdate} from "../../services/eventNotification.js"
+import {notifyEventUpdate , notifyEventCompleted} from "../../services/eventNotification.js"
 
 
 export const createOrder = async (req, res) => {
@@ -482,6 +482,7 @@ export const getRecentOrders = async (req, res) => {
   }
 };
 
+
 // export const updateOrderStatus = async (req, res) => {
 //   try {
 //     const { orderId } = req.params;
@@ -500,7 +501,7 @@ export const getRecentOrders = async (req, res) => {
 //       });
 //     }
 
-//     // ✅ Populate customerId for WhatsApp
+//     // ✅ Fetch order with customer details
 //     const order = await Order.findById(orderId).populate("customerId");
 
 //     if (!order) {
@@ -510,29 +511,60 @@ export const getRecentOrders = async (req, res) => {
 //       });
 //     }
 
-//     order.orderStatus = status;
-
+//     // ✅ Handle rescheduled logic
 //     if (status === "rescheduled") {
-//       if (reason) order.reason = reason;
+//       if (!reason) {
+//         return res.status(400).json({
+//           success: false,
+//           message: "Reason is required for rescheduling."
+//         });
+//       }
+
+//       // Ensure at least one reschedule field is present
+//       const hasRescheduleInfo = rescheduledDate || rescheduledTime || rescheduledAddress;
+//       if (!hasRescheduleInfo) {
+//         return res.status(400).json({
+//           success: false,
+//           message: "At least one of rescheduledDate, rescheduledTime, or rescheduledAddress is required."
+//         });
+//       }
+
+//       order.orderStatus = status;
+//       order.reason = reason;
+
 //       if (rescheduledDate) order.rescheduledEventDate = rescheduledDate;
-//       order.rescheduledEventTime = rescheduledTime || order.eventTime;
+//       if (rescheduledTime) order.rescheduledEventTime = rescheduledTime;
 //       if (rescheduledAddress) order.rescheduledAddress = rescheduledAddress;
-//     } else if (status === "cancelled") {
-//       if (reason) order.reason = reason;
 //     }
 
-//     await order.save();
+//     // ✅ Handle cancelled logic
+//     else if (status === "cancelled") {
+//       if (!reason) {
+//         return res.status(400).json({
+//           success: false,
+//           message: "Reason is required for cancellation."
+//         });
+//       }
 
-//     // ✅ Update payment status if order is cancelled
-//     if (status === "cancelled") {
+//       order.orderStatus = status;
+//       order.reason = reason;
+
+//       // Also cancel associated payment if any
 //       await Payment.updateOne(
-//         { orderId: order.orderId }, // assuming orderId is a string field in Payment
+//         { orderId: order.orderId },
 //         { $set: { status: "CANCELLED" } }
 //       );
 //     }
 
-//     // ✅ Send WhatsApp message after status update
-//     if (status === "cancelled" || status === "rescheduled") {
+//     // If it's another status update (e.g., confirmed, completed)
+//     else {
+//       order.orderStatus = status;
+//     }
+
+//     await order.save();
+
+//     // ✅ Notify customer if it's a significant status
+//     if (["cancelled", "rescheduled"].includes(status)) {
 //       await notifyEventUpdate(order, status);
 //     }
 
@@ -552,6 +584,7 @@ export const getRecentOrders = async (req, res) => {
 //   }
 // };
 
+
 export const updateOrderStatus = async (req, res) => {
   try {
     const { orderId } = req.params;
@@ -570,7 +603,6 @@ export const updateOrderStatus = async (req, res) => {
       });
     }
 
-    // ✅ Fetch order with customer details
     const order = await Order.findById(orderId).populate("customerId");
 
     if (!order) {
@@ -580,7 +612,6 @@ export const updateOrderStatus = async (req, res) => {
       });
     }
 
-    // ✅ Handle rescheduled logic
     if (status === "rescheduled") {
       if (!reason) {
         return res.status(400).json({
@@ -589,7 +620,6 @@ export const updateOrderStatus = async (req, res) => {
         });
       }
 
-      // Ensure at least one reschedule field is present
       const hasRescheduleInfo = rescheduledDate || rescheduledTime || rescheduledAddress;
       if (!hasRescheduleInfo) {
         return res.status(400).json({
@@ -606,7 +636,6 @@ export const updateOrderStatus = async (req, res) => {
       if (rescheduledAddress) order.rescheduledAddress = rescheduledAddress;
     }
 
-    // ✅ Handle cancelled logic
     else if (status === "cancelled") {
       if (!reason) {
         return res.status(400).json({
@@ -618,23 +647,25 @@ export const updateOrderStatus = async (req, res) => {
       order.orderStatus = status;
       order.reason = reason;
 
-      // Also cancel associated payment if any
       await Payment.updateOne(
         { orderId: order.orderId },
         { $set: { status: "CANCELLED" } }
       );
     }
 
-    // If it's another status update (e.g., confirmed, completed)
     else {
       order.orderStatus = status;
     }
 
     await order.save();
 
-    // ✅ Notify customer if it's a significant status
+    // ✅ Send notifications
     if (["cancelled", "rescheduled"].includes(status)) {
       await notifyEventUpdate(order, status);
+    }
+
+    if (status === "completed") {
+      await notifyEventCompleted(order); 
     }
 
     return res.status(200).json({

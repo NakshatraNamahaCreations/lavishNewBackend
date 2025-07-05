@@ -1,109 +1,66 @@
 import Review from '../models/Review.js';
 import Service from '../models/serviceManagement/Service.js';
+import axios from 'axios';
+import dotenv from 'dotenv';
+import handleMultipleFileUpload  from "../middleware/multer/uploadToBunnyCDN.js";
 
-// export const createReview = async (req, res) => {
-//     try {
-//         const { customerId, serviceId, rating, reviewText } = req.body;
-//         let images = [];
+dotenv.config();
 
-//         if (req.body.images) {
-//             try {
-//                 images = JSON.parse(req.body.images);
-//             } catch (e) {
-//                 return res.status(400).json({ message: 'Invalid images format.' });
-//             }
-//         }
-
-//         if (!customerId || !serviceId || !rating || !reviewText) {
-//             return res.status(400).json({ message: 'Fill all the fields.' });
-//         }
-
-//         // Only add images field if images array is not empty
-//         const reviewData = {
-//             customerId,
-//             serviceId,
-//             rating,
-//             reviewText,
-//             createdAt: new Date(),
-//         };
-//         if (images.length > 0) {
-//             reviewData.images = images;
-//         }
-
-//         const newReview = new Review(reviewData);
-//         const savedReview = await newReview.save();
-
-//         res.status(201).json({
-//             message: 'Review created successfully',
-//             review: savedReview,
-//         });
-//     } catch (error) {
-//         console.error('Error creating review:', error);
-//         res.status(500).json({ message: 'Server error while creating review' });
-//     }
-// };
 
 export const createReview = async (req, res) => {
-    try {
-        const { customerId, serviceId, rating, reviewText } = req.body;
-        let images = [];
+  try {
+    const { customerId, serviceId, rating, reviewText, folder = "ReviewImages" } = req.body;
 
-        if (req.body.images) {
-            try {
-                images = JSON.parse(req.body.images);
-            } catch (e) {
-                return res.status(400).json({ message: 'Invalid images format.' });
-            }
-        }
-
-        if (!customerId || !serviceId || !rating || !reviewText) {
-            return res.status(400).json({ message: 'Fill all the fields.' });
-        }
-
-        // Create review object
-        const reviewData = {
-            customerId,
-            serviceId,
-            rating,
-            reviewText,
-            createdAt: new Date(),
-        };
-        if (images.length > 0) {
-            reviewData.images = images;
-        }
-
-        // Save the review
-        const newReview = new Review(reviewData);
-        const savedReview = await newReview.save();
-
-        // Count reviews for this service
-        const reviewCount = await Review.countDocuments({ serviceId });
-
-        if (reviewCount === 1) {
-            // First review: set this rating in Service
-            await Service.findByIdAndUpdate(
-                serviceId,
-                { $set: { rating: savedReview.rating } }
-            );
-        } else {
-            // Not first review: find highest rating and update Service
-            const highestReview = await Review.findOne({ serviceId }).sort({ rating: -1 });
-            if (highestReview) {
-                await Service.findByIdAndUpdate(
-                    serviceId,
-                    { $set: { rating: highestReview.rating } }
-                );
-            }
-        }
-
-        res.status(201).json({
-            message: 'Review created successfully',
-            review: savedReview,
-        });
-    } catch (error) {
-        console.error('Error creating review:', error);
-        res.status(500).json({ message: 'Server error while creating review' });
+    if (!customerId || !serviceId || !rating || !reviewText) {
+      return res.status(400).json({ error: "Required fields missing." });
     }
+
+    const parsedRating = Number(rating);
+    if (isNaN(parsedRating) || parsedRating < 0 || parsedRating > 5) {
+      return res.status(400).json({ error: "Rating must be between 0 and 5." });
+    }
+
+    let images = [];
+
+    if (req.files?.length > 0) {
+      const invalidFiles = req.files.filter((f) => !f.mimetype.startsWith("image/"));
+      if (invalidFiles.length > 0) {
+        return res.status(400).json({ error: "Only image files are allowed." });
+      }
+
+      images = await handleMultipleFileUpload(req.files, folder);
+      images = images.filter(Boolean);
+    }
+
+    const reviewData = {
+      customerId,
+      serviceId,
+      rating: parsedRating,
+      reviewText,
+      images,
+      createdAt: new Date(),
+    };
+
+    const newReview = new Review(reviewData);
+    const savedReview = await newReview.save();
+
+    const reviewCount = await Review.countDocuments({ serviceId });
+    const topReview = await Review.findOne({ serviceId }).sort({ rating: -1 });
+
+    if (reviewCount === 1 || topReview) {
+      await Service.findByIdAndUpdate(serviceId, {
+        $set: { rating: topReview.rating },
+      });
+    }
+
+    return res.status(201).json({
+      message: "Review created successfully",
+      review: savedReview,
+    });
+  } catch (error) {
+    console.error("Create review error:", error.message);
+    return res.status(500).json({ error: "Server error while creating review" });
+  }
 };
 
 export const getReviews = async (req, res) => {
