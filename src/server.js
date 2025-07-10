@@ -28,6 +28,8 @@ import enquiryRoutes from "./routes/enquiry/enquiryRoutes.js";
 import ticketRoutes from "./routes/ticketRoutes.js";
 import phonepeRoutes from "./routes/payment/phonepeRoutes.js";
 import emailRoutes from "./routes/email.js"
+import blogRoutes from "./routes/Blogs/blogRoutes.js"
+
 dotenv.config();
 connectDB();
 
@@ -74,6 +76,7 @@ app.use("/api/wishlist", wishlistRoutes);
 app.use("/api/enquiries", enquiryRoutes);
 app.use("/api/tickets", ticketRoutes);
 app.use("/api/payment", phonepeRoutes);
+app.use("/api/blog", blogRoutes);
 app.use('/api', emailRoutes);
 
 // Root
