@@ -1,60 +1,6 @@
 import Blog from "../../models/Blogs/Blog.js"
 import { uploadSingleFileToBunny } from "../../middleware/multer/fileUploader.js";
 
-// Add Blog
-// export const addBlog = async (req, res) => {
-//   try {
-//     const {
-//       title,
-//       redirectLink,
-//       metaTitle,
-//       metaDescription,
-//       description,
-//     } = req.body;
-
-//     const bannerFile = req.files?.['bannerImage']?.[0];
-//     const thumbFile = req.files?.['thumbnailImage']?.[0];
-
-//     if (
-//       !title || !bannerFile || !thumbFile ||
-//       !redirectLink || !metaTitle || !metaDescription || !description
-//     ) {
-//       return res.status(400).json({ success: false, message: "All fields are required" });
-//     }
-
-//     const bannerImage = await uploadSingleFileToBunny(bannerFile);
-//     const thumbnailImage = await uploadSingleFileToBunny(thumbFile);
-
-//     if (!bannerImage || !thumbnailImage) {
-//       return res.status(500).json({ success: false, message: "Image upload failed" });
-//     }
-
-//     const newBlog = new Blog({
-//       title,
-//       bannerImage,
-//       thumbnailImage,
-//       redirectLink,
-//       metaTitle,
-//       metaDescription,
-//       description,
-//     });
-
-//     await newBlog.save();
-
-//     return res.status(201).json({
-//       success: true,
-//       message: "Blog added successfully",
-//       data: newBlog,
-//     });
-//   } catch (error) {
-//     console.error("Error adding Blog:", error);
-//     return res.status(500).json({
-//       success: false,
-//       message: "Failed to add blog",
-//       error: error.message,
-//     });
-//   }
-// };
 
 export const addBlog = async (req, res) => {
   try {
@@ -64,29 +10,41 @@ export const addBlog = async (req, res) => {
       metaTitle,
       metaDescription,
       description,
-      faqs, // Get FAQs from the request body
+      faqs,
     } = req.body;
 
     const bannerFile = req.files?.["bannerImage"]?.[0];
     const thumbFile = req.files?.["thumbnailImage"]?.[0];
 
-    if (
-      !title ||
-      !bannerFile ||
-      !redirectLink ||
-      !metaTitle ||
-      !metaDescription ||
-      !description ||
-      !faqs
-    ) {
-      return res
-        .status(400)
-        .json({ success: false, message: "All fields are required" });
+    // Basic field validation
+    if (!title || !bannerFile || !metaTitle || !metaDescription || !description || !faqs) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields",
+      });
     }
 
+    // Parse and validate FAQs
+    let parsedFaqs = [];
+    try {
+      parsedFaqs = JSON.parse(faqs);
+      if (!Array.isArray(parsedFaqs)) throw new Error();
+    } catch (err) {
+      return res.status(400).json({
+        success: false,
+        message: "FAQs must be a valid JSON array of {question, answer} objects.",
+      });
+    }
+
+    // Check for duplicate title
+    const existing = await Blog.findOne({ title });
+    if (existing) {
+      return res.status(409).json({ success: false, message: "Title already exists" });
+    }
+
+    // Upload files
     const bannerImage = await uploadSingleFileToBunny(bannerFile);
     let thumbnailImage = null;
-
     if (thumbFile) {
       thumbnailImage = await uploadSingleFileToBunny(thumbFile);
     }
@@ -99,7 +57,7 @@ export const addBlog = async (req, res) => {
       metaTitle,
       metaDescription,
       description,
-      faqs: JSON.parse(faqs), // Store FAQs as an array of objects
+      faqs: parsedFaqs,
     });
 
     await newBlog.save();
@@ -110,7 +68,7 @@ export const addBlog = async (req, res) => {
       data: newBlog,
     });
   } catch (error) {
-    console.error("Error adding Blog:", error);
+    console.error("Error adding Blog:", error.stack); // full stack trace
     return res.status(500).json({
       success: false,
       message: "Failed to add blog",
@@ -118,6 +76,8 @@ export const addBlog = async (req, res) => {
     });
   }
 };
+
+
 // Get All Blogs (with search & pagination)
 export const getAllBlogs = async (req, res) => {
   try {
@@ -195,33 +155,6 @@ export const getBlogById = async (req, res) => {
 
 // controllers/blogController.js
 
-// export const getBlogByTitle = async (req, res) => {
-//   try {
-//     const { title } = req.params;
-
-//     const blog = await Blog.findOne({ title });
-
-//     if (!blog) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Blog not found",
-//       });
-//     }
-
-//     return res.status(200).json({
-//       success: true,
-//       message: "Blog fetched successfully",
-//       data: blog,
-//     });
-//   } catch (error) {
-//     console.error("Error fetching blog by title:", error);
-//     return res.status(500).json({
-//       success: false,
-//       message: "Failed to fetch blog",
-//       error: error.message,
-//     });
-//   }
-// };
 export const getBlogByTitle = async (req, res) => {
   try {
     const { title } = req.params;
@@ -251,67 +184,6 @@ export const getBlogByTitle = async (req, res) => {
   }
 };
 
-
-
-// Update Blog
-// export const updateBlog = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const {
-//       title,
-//       redirectLink,
-//       metaTitle,
-//       metaDescription,
-//       description,
-//     } = req.body;
-
-//     if (!title || !redirectLink || !metaTitle || !metaDescription || !description) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "All fields are required",
-//       });
-//     }
-
-//     const updates = {
-//       title,
-//       redirectLink,
-//       metaTitle,
-//       metaDescription,
-//       description,
-//     };
-
-//     if (req.files?.['bannerImage']?.[0]) {
-//       updates.bannerImage = await uploadSingleFileToBunny(req.files['bannerImage'][0]);
-//     }
-
-//     if (req.files?.['thumbnailImage']?.[0]) {
-//       updates.thumbnailImage = await uploadSingleFileToBunny(req.files['thumbnailImage'][0]);
-//     }
-
-//     const updatedBlog = await Blog.findByIdAndUpdate(id, updates, { new: true });
-
-//     if (!updatedBlog) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Blog not found",
-//       });
-//     }
-
-//     return res.status(200).json({
-//       success: true,
-//       message: "Blog updated successfully",
-//       data: updatedBlog,
-//     });
-//   } catch (error) {
-//     console.error("Error updating blog:", error);
-//     return res.status(500).json({
-//       success: false,
-//       message: "Failed to update blog",
-//       error: error.message,
-//     });
-//   }
-// };
-
 export const updateBlog = async (req, res) => {
   try {
     const { id } = req.params;
@@ -321,40 +193,62 @@ export const updateBlog = async (req, res) => {
       metaTitle,
       metaDescription,
       description,
-      faqs, // Fetch FAQs from request body
+      faqs, // May or may not be sent
     } = req.body;
 
-    // Validation for required fields
-    if (!title || !redirectLink || !metaTitle || !metaDescription || !description) {
+    // ✅ Only validate required fields (redirectLink is optional)
+    if (!title || !metaTitle || !metaDescription || !description) {
       return res.status(400).json({
         success: false,
-        message: "All fields are required",
+        message: "Missing required fields",
       });
     }
 
-    // Prepare the update object
     const updates = {
       title,
-      redirectLink,
+      redirectLink: redirectLink || "", // optional
       metaTitle,
       metaDescription,
       description,
-      faqs: faqs ? JSON.parse(faqs) : [], // Ensure the FAQs are parsed and set if provided
     };
 
-    // Handle file uploads for bannerImage and thumbnailImage
-    if (req.files?.['bannerImage']?.[0]) {
-      updates.bannerImage = await uploadSingleFileToBunny(req.files['bannerImage'][0]);
+    // ✅ Safely parse FAQs only if provided
+    if (faqs) {
+      try {
+        const parsedFaqs = JSON.parse(faqs);
+        if (!Array.isArray(parsedFaqs)) {
+          return res.status(400).json({
+            success: false,
+            message: "FAQs must be a valid JSON array.",
+          });
+        }
+        updates.faqs = parsedFaqs;
+      } catch (err) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid FAQs format. Must be JSON.",
+        });
+      }
     }
 
-    if (req.files?.['thumbnailImage']?.[0]) {
-      updates.thumbnailImage = await uploadSingleFileToBunny(req.files['thumbnailImage'][0]);
+    // ✅ Upload new bannerImage if provided
+    if (req.files?.["bannerImage"]?.[0]) {
+      const bannerUrl = await uploadSingleFileToBunny(req.files["bannerImage"][0]);
+      updates.bannerImage = bannerUrl;
     }
 
-    // Find and update the blog document
-    const updatedBlog = await Blog.findByIdAndUpdate(id, updates, { new: true });
+    // ✅ Upload new thumbnailImage if provided
+    if (req.files?.["thumbnailImage"]?.[0]) {
+      const thumbUrl = await uploadSingleFileToBunny(req.files["thumbnailImage"][0]);
+      updates.thumbnailImage = thumbUrl;
+    }
 
-    // If the blog is not found
+    // ✅ Update blog by ID
+    const updatedBlog = await Blog.findByIdAndUpdate(id, updates, {
+      new: true,
+      runValidators: true,
+    });
+
     if (!updatedBlog) {
       return res.status(404).json({
         success: false,
@@ -362,14 +256,13 @@ export const updateBlog = async (req, res) => {
       });
     }
 
-    // Return success response with updated data
     return res.status(200).json({
       success: true,
       message: "Blog updated successfully",
       data: updatedBlog,
     });
   } catch (error) {
-    console.error("Error updating blog:", error);
+    console.error("Error updating blog:", error.stack);
     return res.status(500).json({
       success: false,
       message: "Failed to update blog",
@@ -378,7 +271,6 @@ export const updateBlog = async (req, res) => {
   }
 };
 
-// Delete Blog
 export const deleteBlog = async (req, res) => {
   try {
     const { id } = req.params;

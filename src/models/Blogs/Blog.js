@@ -19,18 +19,18 @@ import mongoose from "mongoose";
 const BlogSchema = new mongoose.Schema(
   {
     title: { type: String, required: true, unique: true },
-    bannerImage: { type: String, required: true }, // main banner image filename
+    bannerImage: { type: String, required: true }, 
     thumbnailImage: { type: String }, // optional
-    redirectLink: { type: String },
+    redirectLink: { type: String }, // optional
     metaTitle: { type: String, required: true },
     metaDescription: { type: String, required: true },
-    description: { type: String, required: true }, // rich text HTML
+    description: { type: String, required: true }, 
     faqs: [
       {
         question: { type: String, required: true },
         answer: { type: String, required: true },
       },
-    ], // FAQ field to store question-answer pairs
+    ],
   },
   { timestamps: true }
 );

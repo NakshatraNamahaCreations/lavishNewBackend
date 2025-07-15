@@ -41,13 +41,15 @@ app.use(
     credentials: true,
     origin: [
       "https://lavisheventzz.com",
+      "https://www.lavisheventzz.com",
       "https://admin.lavisheventzz.com",
       "http://localhost:5173",
       "http://localhost:5174",
-      "https://api.lavisheventzz.com/api",
+      "https://api.lavisheventzz.com",
     ],
   })
 );
+// "https://api.lavisheventzz.com/api",
 
 app.use(bodyParser.json());
 app.use(cookieParser());
