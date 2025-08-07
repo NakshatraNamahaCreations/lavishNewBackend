@@ -227,8 +227,6 @@ export const updateService = async (req, res) => {
 };
 
 
-
-
 export const getAllService = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -422,6 +420,8 @@ export const getServiceById = async (req, res) => {
     });
   }
 };
+
+
 
 export const getServiceCount = async (req, res) => {
   try {

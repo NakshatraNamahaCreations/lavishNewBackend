@@ -49,11 +49,14 @@ app.use(
     ],
   })
 );
-// "https://api.lavisheventzz.com/api",
+
 
 app.use(bodyParser.json());
 app.use(cookieParser());
-app.use(express.urlencoded({ extended: true }));
+// app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "100mb" }));
+app.use(express.urlencoded({ extended: true, limit: "100mb" }));
+
 // ✅ Serve static files from the public directory
 app.use(express.static("public"));
 

@@ -9,7 +9,6 @@ import {
   getServiceCount,
   getServicesBySubCategory,
   getServiceBySearchValue,
-
 } from "../../controllers/serviceManagement/serviceController.js";
 import { adminauthenticateToken } from "../../middleware/admin/authMiddleware.js";
 import upload from "../../middleware/multer/multiUploadMulter.js";
