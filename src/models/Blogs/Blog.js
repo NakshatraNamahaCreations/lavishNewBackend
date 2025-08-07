@@ -22,9 +22,9 @@ const BlogSchema = new mongoose.Schema(
     bannerImage: { type: String, required: true }, 
     thumbnailImage: { type: String }, // optional
     redirectLink: { type: String }, // optional
+    description: { type: String, required: true }, 
     metaTitle: { type: String, required: true },
     metaDescription: { type: String, required: true },
-    description: { type: String, required: true }, 
     faqs: [
       {
         question: { type: String, required: true },

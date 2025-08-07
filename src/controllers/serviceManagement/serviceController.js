@@ -2,8 +2,232 @@ import Service from "../../models/serviceManagement/Service.js";
 import Subcategory from "../../models/category/Subcategory.js";
 import SubSubCategory from "../../models/category/Subsubcategory.js";
 
+// export const createService = async (req, res) => {
+//   console.log("req.body", req.body);
+//   try {
+//     const {
+//       serviceName,
+//       categoryId,
+//       subCategoryId,
+//       subSubCategoryId,
+//       themeId,
+//       packageDetails,
+//       requiredDetails,
+//       customizedInputs,
+//       balloonColors,
+//       originalPrice,
+//       offerPrice,
+//       images,
+//     } = req.body;
+
+//     if (
+//       !serviceName ||
+//       !categoryId ||
+//       !subCategoryId ||
+//       !packageDetails ||
+//       !originalPrice ||
+//       !offerPrice ||
+//       !balloonColors ||
+//       !images
+//     ) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Please provide all required fields",
+//       });
+//     }
+
+//     // Parse inputs
+//     let parsedCustomizedInputs = [];
+//     try {
+//       parsedCustomizedInputs = customizedInputs ? JSON.parse(customizedInputs) : [];
+
+//       if (!Array.isArray(parsedCustomizedInputs)) {
+//         return res.status(400).json({
+//           success: false,
+//           message: "customizedInputs must be an array of objects.",
+//         });
+//       }
+
+//       for (const input of parsedCustomizedInputs) {
+//         if (!input.label || !input.inputType) {
+//           return res.status(400).json({
+//             success: false,
+//             message: "Each customized input must include label and inputType.",
+//           });
+//         }
+//       }
+//     } catch (error) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Invalid customizedInputs format.",
+//       });
+//     }
+
+//     const parsedBalloonColors = JSON.parse(balloonColors);
+//     const parsedImages = JSON.parse(images);
+
+//     // const imagePaths = req.files.map((file) => file.filename);
+
+//     const newService = new Service({
+//       serviceName,
+//       categoryId,
+//       subCategoryId,
+//       subSubCategoryId: subSubCategoryId || null,
+//       themeId: themeId || null,
+//       packageDetails,
+//       requiredDetails,
+//       customizedInputs: parsedCustomizedInputs,
+//       balloonColors: parsedBalloonColors,
+//       originalPrice: Number(originalPrice),
+//       offerPrice: Number(offerPrice),
+//       images: parsedImages,
+//     });
+
+//     await newService.save();
+
+//     return res.status(201).json({
+//       success: true,
+//       message: "Service created successfully",
+//       data: newService,
+//     });
+//   } catch (error) {
+//     console.error("Error creating service:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to create service",
+//       error: error.message,
+//     });
+//   }
+// };
+
+
+// export const updateService = async (req, res) => {
+//   try {
+//     const { serviceId } = req.params;
+
+//     const {
+//       serviceName,
+//       categoryId,
+//       subCategoryId,
+//       subSubCategoryId,
+//       themeId,
+//       packageDetails,
+//       requiredDetails,
+//       customizedInputs,
+//       balloonColors,
+//       originalPrice,
+//       offerPrice,
+//       images
+//     } = req.body;
+
+//     const service = await Service.findById(serviceId);
+//     if (!service) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Service not found",
+//       });
+//     }
+
+//     // Safe parse: customizedInputs
+//     let parsedCustomizedInputs = [];
+//     if (customizedInputs) {
+//       try {
+//         parsedCustomizedInputs = typeof customizedInputs === "string"
+//           ? JSON.parse(customizedInputs)
+//           : customizedInputs;
+
+//         if (!Array.isArray(parsedCustomizedInputs)) {
+//           return res.status(400).json({
+//             success: false,
+//             message: "customizedInputs must be an array of objects.",
+//           });
+//         }
+
+//         for (const input of parsedCustomizedInputs) {
+//           if (!input.label || !input.inputType) {
+//             return res.status(400).json({
+//               success: false,
+//               message: "Each customized input must include label and inputType.",
+//             });
+//           }
+//         }
+//       } catch (error) {
+//         return res.status(400).json({
+//           success: false,
+//           message: "Invalid customizedInputs format.",
+//         });
+//       }
+//     } else {
+//       parsedCustomizedInputs = service.customizedInputs;
+//     }
+
+//     // Safe parse: balloonColors
+//     let parsedBalloonColors = [];
+//     if (balloonColors) {
+//       try {
+//         parsedBalloonColors = typeof balloonColors === "string"
+//           ? JSON.parse(balloonColors)
+//           : balloonColors;
+//       } catch (error) {
+//         return res.status(400).json({
+//           success: false,
+//           message: "Invalid balloonColors format.",
+//         });
+//       }
+//     } else {
+//       parsedBalloonColors = service.balloonColors;
+//     }
+
+//     // Safe parse: images
+//     let parsedImages = [];
+//     if (images) {
+//       try {
+//         parsedImages = typeof images === "string"
+//           ? JSON.parse(images)
+//           : images;
+//       } catch (error) {
+//         return res.status(400).json({
+//           success: false,
+//           message: "Invalid images format.",
+//         });
+//       }
+//     } else {
+//       parsedImages = service.images;
+//     }
+
+//     // Update all fields
+//     service.serviceName = serviceName || service.serviceName;
+//     service.categoryId = categoryId || service.categoryId;
+//     service.subCategoryId = subCategoryId || service.subCategoryId;
+//     service.subSubCategoryId = subSubCategoryId || null;
+//     service.themeId = themeId || null;
+//     service.packageDetails = packageDetails || service.packageDetails;
+//     service.requiredDetails = requiredDetails || service.requiredDetails;
+//     service.customizedInputs = parsedCustomizedInputs;
+//     service.balloonColors = parsedBalloonColors;
+//     service.originalPrice = originalPrice || service.originalPrice;
+//     service.offerPrice = offerPrice || service.offerPrice;
+//     service.images = parsedImages;
+
+//     await service.save();
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "Service updated successfully",
+//       data: service,
+//     });
+//   } catch (error) {
+//     console.error("Error updating service:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to update service",
+//       error: error.message,
+//     });
+//   }
+// };
+
+
 export const createService = async (req, res) => {
-  console.log("req.body", req.body);
   try {
     const {
       serviceName,
@@ -18,6 +242,11 @@ export const createService = async (req, res) => {
       originalPrice,
       offerPrice,
       images,
+      caption,
+      metaTitle,
+      metaDescription,
+      keywords,
+      faqs,
     } = req.body;
 
     if (
@@ -36,18 +265,11 @@ export const createService = async (req, res) => {
       });
     }
 
-    // Parse inputs
+    // Parse customizedInputs
     let parsedCustomizedInputs = [];
     try {
       parsedCustomizedInputs = customizedInputs ? JSON.parse(customizedInputs) : [];
-
-      if (!Array.isArray(parsedCustomizedInputs)) {
-        return res.status(400).json({
-          success: false,
-          message: "customizedInputs must be an array of objects.",
-        });
-      }
-
+      if (!Array.isArray(parsedCustomizedInputs)) throw new Error();
       for (const input of parsedCustomizedInputs) {
         if (!input.label || !input.inputType) {
           return res.status(400).json({
@@ -56,17 +278,22 @@ export const createService = async (req, res) => {
           });
         }
       }
-    } catch (error) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid customizedInputs format.",
-      });
+    } catch {
+      return res.status(400).json({ success: false, message: "Invalid customizedInputs format." });
     }
 
+    // Parse balloonColors and images
     const parsedBalloonColors = JSON.parse(balloonColors);
     const parsedImages = JSON.parse(images);
 
-    // const imagePaths = req.files.map((file) => file.filename);
+    // Parse faqs
+    let parsedFaqs = [];
+    try {
+      parsedFaqs = faqs ? JSON.parse(faqs) : [];
+      if (!Array.isArray(parsedFaqs)) parsedFaqs = [];
+    } catch {
+      parsedFaqs = [];
+    }
 
     const newService = new Service({
       serviceName,
@@ -81,6 +308,11 @@ export const createService = async (req, res) => {
       originalPrice: Number(originalPrice),
       offerPrice: Number(offerPrice),
       images: parsedImages,
+      caption: caption || "",
+      metaTitle: metaTitle || "",
+      metaDescription: metaDescription || "",
+      keywords: keywords || "",
+      faqs: parsedFaqs,
     });
 
     await newService.save();
@@ -100,7 +332,6 @@ export const createService = async (req, res) => {
   }
 };
 
-
 export const updateService = async (req, res) => {
   try {
     const { serviceId } = req.params;
@@ -117,85 +348,72 @@ export const updateService = async (req, res) => {
       balloonColors,
       originalPrice,
       offerPrice,
-      images
+      images,
+      caption,
+      metaTitle,
+      metaDescription,
+      keywords,
+      faqs
     } = req.body;
 
     const service = await Service.findById(serviceId);
     if (!service) {
-      return res.status(404).json({
-        success: false,
-        message: "Service not found",
-      });
+      return res.status(404).json({ success: false, message: "Service not found" });
     }
 
     // Safe parse: customizedInputs
-    let parsedCustomizedInputs = [];
-    if (customizedInputs) {
-      try {
-        parsedCustomizedInputs = typeof customizedInputs === "string"
+    let parsedCustomizedInputs = service.customizedInputs;
+    try {
+      parsedCustomizedInputs = customizedInputs
+        ? typeof customizedInputs === "string"
           ? JSON.parse(customizedInputs)
-          : customizedInputs;
+          : customizedInputs
+        : parsedCustomizedInputs;
 
-        if (!Array.isArray(parsedCustomizedInputs)) {
-          return res.status(400).json({
-            success: false,
-            message: "customizedInputs must be an array of objects.",
-          });
-        }
-
-        for (const input of parsedCustomizedInputs) {
-          if (!input.label || !input.inputType) {
-            return res.status(400).json({
-              success: false,
-              message: "Each customized input must include label and inputType.",
-            });
-          }
-        }
-      } catch (error) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid customizedInputs format.",
-        });
-      }
-    } else {
-      parsedCustomizedInputs = service.customizedInputs;
+      if (!Array.isArray(parsedCustomizedInputs)) throw new Error();
+    } catch {
+      return res.status(400).json({ success: false, message: "Invalid customizedInputs format." });
     }
 
     // Safe parse: balloonColors
-    let parsedBalloonColors = [];
-    if (balloonColors) {
-      try {
-        parsedBalloonColors = typeof balloonColors === "string"
+    let parsedBalloonColors = service.balloonColors;
+    try {
+      parsedBalloonColors = balloonColors
+        ? typeof balloonColors === "string"
           ? JSON.parse(balloonColors)
-          : balloonColors;
-      } catch (error) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid balloonColors format.",
-        });
-      }
-    } else {
-      parsedBalloonColors = service.balloonColors;
+          : balloonColors
+        : parsedBalloonColors;
+    } catch {
+      return res.status(400).json({ success: false, message: "Invalid balloonColors format." });
     }
 
     // Safe parse: images
-    let parsedImages = [];
-    if (images) {
-      try {
-        parsedImages = typeof images === "string"
+    let parsedImages = service.images;
+    try {
+      parsedImages = images
+        ? typeof images === "string"
           ? JSON.parse(images)
-          : images;
-      } catch (error) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid images format.",
-        });
-      }
-    } else {
-      parsedImages = service.images;
+          : images
+        : parsedImages;
+    } catch {
+      return res.status(400).json({ success: false, message: "Invalid images format." });
     }
 
-    // Update all fields
+    // Safe parse: faqs
+    let parsedFaqs = service.faqs;
+    try {
+      parsedFaqs = faqs
+        ? typeof faqs === "string"
+          ? JSON.parse(faqs)
+          : faqs
+        : parsedFaqs;
+
+      if (!Array.isArray(parsedFaqs)) parsedFaqs = [];
+    } catch {
+      parsedFaqs = [];
+    }
+
+    // Update fields
     service.serviceName = serviceName || service.serviceName;
     service.categoryId = categoryId || service.categoryId;
     service.subCategoryId = subCategoryId || service.subCategoryId;
@@ -208,6 +426,11 @@ export const updateService = async (req, res) => {
     service.originalPrice = originalPrice || service.originalPrice;
     service.offerPrice = offerPrice || service.offerPrice;
     service.images = parsedImages;
+    service.caption = caption || service.caption;
+    service.metaTitle = metaTitle || service.metaTitle;
+    service.metaDescription = metaDescription || service.metaDescription;
+    service.keywords = keywords || service.keywords;
+    service.faqs = parsedFaqs;
 
     await service.save();
 

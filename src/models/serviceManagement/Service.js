@@ -72,6 +72,29 @@ const ServiceSchema = new mongoose.Schema(
       min: 1,
       max: 5,
     },
+
+    keywords: {
+      type: String,
+      default: "",
+    },
+    caption: {
+      type: String,
+      default: "",
+    },
+    metaTitle: {
+      type: String,
+      default: "",
+    },
+    metaDescription: {
+      type: String,
+      default: "",
+    },
+    faqs: [
+      {
+        question: { type: String },
+        answer: { type: String },
+      },
+    ],
   },
   { timestamps: true }
 );

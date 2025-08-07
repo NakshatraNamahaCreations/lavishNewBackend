@@ -193,7 +193,7 @@ export const updateBlog = async (req, res) => {
       metaTitle,
       metaDescription,
       description,
-      faqs, // May or may not be sent
+      faqs, 
     } = req.body;
 
     // ✅ Only validate required fields (redirectLink is optional)
