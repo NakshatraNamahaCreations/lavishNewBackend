@@ -336,6 +336,14 @@ export const updateService = async (req, res) => {
   try {
     const { serviceId } = req.params;
 
+    const existingService = await Service.findById(serviceId);
+    if (!existingService) {
+      return res.status(404).json({
+        success: false,
+        message: "Service not found",
+      });
+    }
+
     const {
       serviceName,
       categoryId,
@@ -353,91 +361,92 @@ export const updateService = async (req, res) => {
       metaTitle,
       metaDescription,
       keywords,
-      faqs
+      faqs,
     } = req.body;
 
-    const service = await Service.findById(serviceId);
-    if (!service) {
-      return res.status(404).json({ success: false, message: "Service not found" });
+    if (
+      !serviceName ||
+      !categoryId ||
+      !subCategoryId ||
+      !packageDetails ||
+      !originalPrice ||
+      !offerPrice ||
+      !balloonColors ||
+      !images
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide all required fields",
+      });
     }
 
-    // Safe parse: customizedInputs
-    let parsedCustomizedInputs = service.customizedInputs;
+    // Parse inputs only if they are strings
+    let parsedCustomizedInputs = [];
     try {
-      parsedCustomizedInputs = customizedInputs
-        ? typeof customizedInputs === "string"
-          ? JSON.parse(customizedInputs)
-          : customizedInputs
-        : parsedCustomizedInputs;
+      parsedCustomizedInputs = Array.isArray(customizedInputs)
+        ? customizedInputs
+        : customizedInputs
+        ? JSON.parse(customizedInputs)
+        : [];
 
-      if (!Array.isArray(parsedCustomizedInputs)) throw new Error();
+      for (const input of parsedCustomizedInputs) {
+        if (!input.label || !input.inputType) {
+          return res.status(400).json({
+            success: false,
+            message: "Each customized input must include label and inputType.",
+          });
+        }
+      }
     } catch {
       return res.status(400).json({ success: false, message: "Invalid customizedInputs format." });
     }
 
-    // Safe parse: balloonColors
-    let parsedBalloonColors = service.balloonColors;
+    let parsedBalloonColors = [];
+    let parsedImages = [];
     try {
-      parsedBalloonColors = balloonColors
-        ? typeof balloonColors === "string"
-          ? JSON.parse(balloonColors)
-          : balloonColors
-        : parsedBalloonColors;
+      parsedBalloonColors = Array.isArray(balloonColors)
+        ? balloonColors
+        : JSON.parse(balloonColors);
+      parsedImages = Array.isArray(images) ? images : JSON.parse(images);
     } catch {
-      return res.status(400).json({ success: false, message: "Invalid balloonColors format." });
+      return res.status(400).json({
+        success: false,
+        message: "Invalid format for balloonColors or images.",
+      });
     }
 
-    // Safe parse: images
-    let parsedImages = service.images;
+    let parsedFaqs = [];
     try {
-      parsedImages = images
-        ? typeof images === "string"
-          ? JSON.parse(images)
-          : images
-        : parsedImages;
-    } catch {
-      return res.status(400).json({ success: false, message: "Invalid images format." });
-    }
-
-    // Safe parse: faqs
-    let parsedFaqs = service.faqs;
-    try {
-      parsedFaqs = faqs
-        ? typeof faqs === "string"
-          ? JSON.parse(faqs)
-          : faqs
-        : parsedFaqs;
-
-      if (!Array.isArray(parsedFaqs)) parsedFaqs = [];
+      parsedFaqs = Array.isArray(faqs) ? faqs : faqs ? JSON.parse(faqs) : [];
     } catch {
       parsedFaqs = [];
     }
 
     // Update fields
-    service.serviceName = serviceName || service.serviceName;
-    service.categoryId = categoryId || service.categoryId;
-    service.subCategoryId = subCategoryId || service.subCategoryId;
-    service.subSubCategoryId = subSubCategoryId || null;
-    service.themeId = themeId || null;
-    service.packageDetails = packageDetails || service.packageDetails;
-    service.requiredDetails = requiredDetails || service.requiredDetails;
-    service.customizedInputs = parsedCustomizedInputs;
-    service.balloonColors = parsedBalloonColors;
-    service.originalPrice = originalPrice || service.originalPrice;
-    service.offerPrice = offerPrice || service.offerPrice;
-    service.images = parsedImages;
-    service.caption = caption || service.caption;
-    service.metaTitle = metaTitle || service.metaTitle;
-    service.metaDescription = metaDescription || service.metaDescription;
-    service.keywords = keywords || service.keywords;
-    service.faqs = parsedFaqs;
+    existingService.serviceName = serviceName;
+    existingService.categoryId = categoryId;
+    existingService.subCategoryId = subCategoryId;
+    existingService.subSubCategoryId = subSubCategoryId || null;
+    existingService.themeId = themeId || null;
+    existingService.packageDetails = packageDetails;
+    existingService.requiredDetails = requiredDetails;
+    existingService.customizedInputs = parsedCustomizedInputs;
+    existingService.balloonColors = parsedBalloonColors;
+    existingService.originalPrice = Number(originalPrice);
+    existingService.offerPrice = Number(offerPrice);
+    existingService.images = parsedImages;
+    existingService.caption = caption || "";
+    existingService.metaTitle = metaTitle || "";
+    existingService.metaDescription = metaDescription || "";
+    existingService.keywords = keywords || "";
+    existingService.faqs = parsedFaqs;
 
-    await service.save();
+    await existingService.save();
 
     return res.status(200).json({
       success: true,
       message: "Service updated successfully",
-      data: service,
+      data: existingService,
     });
   } catch (error) {
     console.error("Error updating service:", error);
@@ -448,6 +457,7 @@ export const updateService = async (req, res) => {
     });
   }
 };
+
 
 
 export const getAllService = async (req, res) => {
