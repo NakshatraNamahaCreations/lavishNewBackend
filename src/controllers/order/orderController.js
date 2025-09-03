@@ -4,7 +4,7 @@ import Service from "../../models/serviceManagement/Service.js"
 import Payment from "../../models/payment/Payment.js";
 import moment from 'moment';
 import {notifyEventUpdate , notifyEventCompleted} from "../../services/eventNotification.js"
-
+import mongoose from 'mongoose';
 
 export const createOrder = async (req, res) => {
   try {
@@ -483,107 +483,6 @@ export const getRecentOrders = async (req, res) => {
 };
 
 
-// export const updateOrderStatus = async (req, res) => {
-//   try {
-//     const { orderId } = req.params;
-//     const {
-//       status,
-//       reason,
-//       rescheduledDate,
-//       rescheduledTime,
-//       rescheduledAddress
-//     } = req.body;
-
-//     if (!orderId || !status) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Order ID and status are required"
-//       });
-//     }
-
-//     // ✅ Fetch order with customer details
-//     const order = await Order.findById(orderId).populate("customerId");
-
-//     if (!order) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Order not found"
-//       });
-//     }
-
-//     // ✅ Handle rescheduled logic
-//     if (status === "rescheduled") {
-//       if (!reason) {
-//         return res.status(400).json({
-//           success: false,
-//           message: "Reason is required for rescheduling."
-//         });
-//       }
-
-//       // Ensure at least one reschedule field is present
-//       const hasRescheduleInfo = rescheduledDate || rescheduledTime || rescheduledAddress;
-//       if (!hasRescheduleInfo) {
-//         return res.status(400).json({
-//           success: false,
-//           message: "At least one of rescheduledDate, rescheduledTime, or rescheduledAddress is required."
-//         });
-//       }
-
-//       order.orderStatus = status;
-//       order.reason = reason;
-
-//       if (rescheduledDate) order.rescheduledEventDate = rescheduledDate;
-//       if (rescheduledTime) order.rescheduledEventTime = rescheduledTime;
-//       if (rescheduledAddress) order.rescheduledAddress = rescheduledAddress;
-//     }
-
-//     // ✅ Handle cancelled logic
-//     else if (status === "cancelled") {
-//       if (!reason) {
-//         return res.status(400).json({
-//           success: false,
-//           message: "Reason is required for cancellation."
-//         });
-//       }
-
-//       order.orderStatus = status;
-//       order.reason = reason;
-
-//       // Also cancel associated payment if any
-//       await Payment.updateOne(
-//         { orderId: order.orderId },
-//         { $set: { status: "CANCELLED" } }
-//       );
-//     }
-
-//     // If it's another status update (e.g., confirmed, completed)
-//     else {
-//       order.orderStatus = status;
-//     }
-
-//     await order.save();
-
-//     // ✅ Notify customer if it's a significant status
-//     if (["cancelled", "rescheduled"].includes(status)) {
-//       await notifyEventUpdate(order, status);
-//     }
-
-//     return res.status(200).json({
-//       success: true,
-//       message: "Order status updated successfully",
-//       order
-//     });
-
-//   } catch (error) {
-//     console.error("Error updating order status:", error);
-//     return res.status(500).json({
-//       success: false,
-//       message: "Failed to update order status",
-//       error: error.message
-//     });
-//   }
-// };
-
 
 export const updateOrderStatus = async (req, res) => {
   try {
@@ -689,14 +588,13 @@ export const getRecentOrdersByUser = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    if (!userId) {
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(400).json({
         success: false,
-        message: "User ID is required"
+        message: "Invalid or missing userId"
       });
     }
 
-    // Step 1: Get recent 5 orders (most recent first)
     const recentOrders = await Order.find({ customerId: userId })
       .sort({ createdAt: -1 })
       .limit(5);
@@ -710,7 +608,6 @@ export const getRecentOrdersByUser = async (req, res) => {
 
     const serviceItemList = [];
 
-    // Step 2: Collect all service item data and refIds
     recentOrders.forEach(order => {
       order.items.forEach(item => {
         if (item.categoryType === 'Service' && item.refId) {
@@ -727,13 +624,10 @@ export const getRecentOrdersByUser = async (req, res) => {
 
     const uniqueServiceIds = [...new Set(serviceItemList.map(i => i.serviceId.toString()))];
 
-    // Step 3: Fetch full service data
     const services = await Service.find({ _id: { $in: uniqueServiceIds } });
 
-    // Step 4: Merge service info with order data
     const merged = serviceItemList.map(serviceItem => {
       const service = services.find(s => s._id.toString() === serviceItem.serviceId.toString());
-
       return {
         ...serviceItem,
         serviceDetails: service || null,

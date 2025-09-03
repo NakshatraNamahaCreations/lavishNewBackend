@@ -3,16 +3,15 @@ import axios from "axios";
 import qs from "qs";
 import dotenv from "dotenv";
 import Order from "../../models/order/Order.js";
-import User from "../../models/User.js"
+import User from "../../models/User.js";
 import Payment from "../../models/payment/Payment.js";
 import sendOrderConfirmation from "../../config/mailer.js";
-import {notifyBooking} from "../../services/eventNotification.js"
+import { notifyBooking } from "../../services/eventNotification.js";
 import moment from "moment";
 // Load environment variables from .env file
 dotenv.config();
 
 const router = express.Router();
-
 
 const getNextOrderId = async () => {
   try {
@@ -20,7 +19,9 @@ const getNextOrderId = async () => {
     const latestOrder = await Order.findOne().sort({ orderId: -1 });
 
     // If no orders exist, start with "ORD0001"
-    const lastOrderNum = latestOrder ? parseInt(latestOrder.orderId.slice(3), 10) : 0;
+    const lastOrderNum = latestOrder
+      ? parseInt(latestOrder.orderId.slice(3), 10)
+      : 0;
 
     // Increment the order number
     const nextOrderNum = lastOrderNum + 1;
@@ -32,7 +33,6 @@ const getNextOrderId = async () => {
     throw new Error("Error generating order ID");
   }
 };
-
 
 // PhonePe API credentials
 const CLIENT_ID = process.env.CLIENT_ID || "SU2506192241154959940199";
@@ -147,7 +147,7 @@ router.post("/initiate-payment", async (req, res) => {
       });
     }
 
-      // Generate orderId on the backend
+    // Generate orderId on the backend
     const orderId = await getNextOrderId(); // Generate unique orderId
 
     // Ensure each item has customizedInputs (default to empty array if not provided)
@@ -159,7 +159,7 @@ router.post("/initiate-payment", async (req, res) => {
     }));
 
     const order = new Order({
-      orderId,  // Use the backend generated orderId
+      orderId, // Use the backend generated orderId
       eventDate,
       eventTime,
       pincode,
@@ -376,7 +376,7 @@ router.get("/verify-payment", async (req, res) => {
 
       // ✅ 📱 Send WhatsApp Booking Confirmation
       try {
-        await notifyBooking(populatedOrder); 
+        await notifyBooking(populatedOrder);
       } catch (whatsappError) {
         console.error(
           "Failed to send WhatsApp message:",
@@ -441,7 +441,8 @@ router.get("/verify-payment", async (req, res) => {
 router.get("/", async (req, res) => {
   try {
     const page = parseInt(req.query.page) > 0 ? parseInt(req.query.page) : 1;
-    const limit = parseInt(req.query.limit) > 0 ? parseInt(req.query.limit) : 10;
+    const limit =
+      parseInt(req.query.limit) > 0 ? parseInt(req.query.limit) : 10;
     const skip = (page - 1) * limit;
     const { search, bookingDate } = req.query;
 
@@ -465,8 +466,8 @@ router.get("/", async (req, res) => {
           from: "orders",
           localField: "orderId",
           foreignField: "orderId",
-          as: "orderDetails"
-        }
+          as: "orderDetails",
+        },
       },
       { $unwind: { path: "$orderDetails", preserveNullAndEmptyArrays: true } },
       // Join with User to get customer info
@@ -475,10 +476,10 @@ router.get("/", async (req, res) => {
           from: "users",
           localField: "customerId",
           foreignField: "_id",
-          as: "customer"
-        }
+          as: "customer",
+        },
       },
-      { $unwind: { path: "$customer", preserveNullAndEmptyArrays: true } }
+      { $unwind: { path: "$customer", preserveNullAndEmptyArrays: true } },
     ];
 
     // Search filter
@@ -491,9 +492,9 @@ router.get("/", async (req, res) => {
             { amount: !isNaN(Number(search)) ? Number(search) : -1 },
             { "orderDetails.customerName": { $regex: searchRegex } },
             { "customer.firstName": { $regex: searchRegex } },
-            { "customer.lastName": { $regex: searchRegex } }
-          ]
-        }
+            { "customer.lastName": { $regex: searchRegex } },
+          ],
+        },
       });
     }
 
@@ -518,8 +519,8 @@ router.get("/", async (req, res) => {
         "orderDetails.customerName": 1,
         "customer.firstName": 1,
         "customer.lastName": 1,
-        "customer.email": 1
-      }
+        "customer.email": 1,
+      },
     });
 
     const payments = await Payment.aggregate(pipeline);
@@ -531,13 +532,13 @@ router.get("/", async (req, res) => {
         total,
         page,
         limit,
-        pages: Math.ceil(total / limit)
-      }
+        pages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: `Failed to fetch payments: ${error.message}`
+      error: `Failed to fetch payments: ${error.message}`,
     });
   }
 });
@@ -625,9 +626,9 @@ router.get("/earnings", async (req, res) => {
       {
         $group: {
           _id: null,
-          totalEarning: { $sum: "$amount" }
-        }
-      }
+          totalEarning: { $sum: "$amount" },
+        },
+      },
     ]);
 
     const totalEarning = totalEarningsResult[0]?.totalEarning || 0;
@@ -640,15 +641,15 @@ router.get("/earnings", async (req, res) => {
       {
         $match: {
           status: "COMPLETED",
-          createdAt: { $gte: startOfMonth, $lte: endOfMonth }
-        }
+          createdAt: { $gte: startOfMonth, $lte: endOfMonth },
+        },
       },
       {
         $group: {
           _id: null,
-          monthlyEarning: { $sum: "$amount" }
-        }
-      }
+          monthlyEarning: { $sum: "$amount" },
+        },
+      },
     ]);
 
     const monthlyEarning = monthlyEarningsResult[0]?.monthlyEarning || 0;
@@ -656,19 +657,17 @@ router.get("/earnings", async (req, res) => {
     return res.status(200).json({
       success: true,
       totalEarning,
-      monthlyEarning
+      monthlyEarning,
     });
-
   } catch (error) {
     console.error("❌ Error in getEarnings:", error);
     return res.status(500).json({
       success: false,
       message: "Failed to fetch earnings",
-      error: error.message
+      error: error.message,
     });
   }
 });
-
 
 // ✅ API: Monthly Earnings (only for COMPLETED payments)
 router.get("/monthly-earnings", async (req, res) => {
@@ -691,7 +690,7 @@ router.get("/monthly-earnings", async (req, res) => {
           total: { $sum: "$amount" },
         },
       },
-      { $sort: { "_id": 1 } },
+      { $sort: { _id: 1 } },
     ]);
 
     const monthlyEarnings = Array.from({ length: 12 }, (_, i) => {
@@ -702,10 +701,10 @@ router.get("/monthly-earnings", async (req, res) => {
     return res.json({ success: true, monthlyEarnings });
   } catch (err) {
     console.error("Error fetching monthly earnings:", err);
-    res.status(500).json({ success: false, message: "Failed to fetch earnings" });
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to fetch earnings" });
   }
 });
-
-
 
 export default router;
