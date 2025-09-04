@@ -1,13 +1,20 @@
-
 import Theme from "../../models/category/Theme.js";
 import SubSubCategory from "../../models/category/Subsubcategory.js";
 import SubCategory from "../../models/category/Subcategory.js";
 import Category from "../../models/category/Category.js";
 
-
 export const addTheme = async (req, res) => {
   try {
-    const { theme, subSubCategory, image } = req.body;
+    const {
+      theme,
+      subSubCategory,
+      image,
+      keywords,
+      caption,
+      metaTitle,
+      metaDescription,
+      faqs,
+    } = req.body;
     if (!theme || !subSubCategory || !image) {
       return res.status(400).json({
         success: false,
@@ -15,6 +22,24 @@ export const addTheme = async (req, res) => {
       });
     }
 
+    let parsedFaqs = [];
+    if (faqs) {
+      try {
+        parsedFaqs = typeof faqs === "string" ? JSON.parse(faqs) : faqs;
+        if (
+          !Array.isArray(parsedFaqs) ||
+          !parsedFaqs.every((faq) => faq.question?.trim() && faq.answer?.trim())
+        ) {
+          throw new Error();
+        }
+      } catch {
+        return res.status(400).json({
+          success: false,
+          message:
+            "FAQs must be a valid JSON array of { question, answer } objects.",
+        });
+      }
+    }
 
     // Check if theme already exists
     const existingTheme = await Theme.findOne({
@@ -33,7 +58,13 @@ export const addTheme = async (req, res) => {
       theme,
       subSubCategory,
       image,
+      keywords,
+      caption,
+      metaTitle,
+      metaDescription,
+      faqs: parsedFaqs,
     });
+
     await newTheme.save();
 
     return res.status(201).json({
@@ -51,8 +82,6 @@ export const addTheme = async (req, res) => {
   }
 };
 
-
-
 export const getAllThemes = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -69,11 +98,14 @@ export const getAllThemes = async (req, res) => {
       const themeNameQuery = { theme: { $regex: search, $options: "i" } };
 
       // Promise.all to run all search queries concurrently
-      const [matchingSubSubCats, matchingSubCats, matchingCats] = await Promise.all([
-        SubSubCategory.find({ subSubCategory: { $regex: search, $options: "i" } }),
-        SubCategory.find({ subCategory: { $regex: search, $options: "i" } }),
-        Category.find({ category: { $regex: search, $options: "i" } })
-      ]);
+      const [matchingSubSubCats, matchingSubCats, matchingCats] =
+        await Promise.all([
+          SubSubCategory.find({
+            subSubCategory: { $regex: search, $options: "i" },
+          }),
+          SubCategory.find({ subCategory: { $regex: search, $options: "i" } }),
+          Category.find({ category: { $regex: search, $options: "i" } }),
+        ]);
 
       // From matching categories, find all subCategories concurrently
       const subCatsFromCats = await SubCategory.find({
@@ -145,8 +177,6 @@ export const getAllThemes = async (req, res) => {
   }
 };
 
-
-
 export const getThemebySubSubcategoryId = async (req, res) => {
   try {
     const { subSubCategoryId } = req.params;
@@ -186,10 +216,19 @@ export const getThemebySubSubcategoryId = async (req, res) => {
 export const updateTheme = async (req, res) => {
   try {
     const { id } = req.params;
-    const { theme, subSubCategory, image } = req.body;
+    const {
+      theme,
+      subSubCategory,
+      image,
+      keywords,
+      caption,
+      metaTitle,
+      metaDescription,
+      faqs,
+    } = req.body;
 
     // Validate required fields
-      if (!theme || !subSubCategory || !image) {
+    if (!theme || !subSubCategory || !image) {
       return res.status(400).json({
         success: false,
         message: "Please provide all required fields",
@@ -219,14 +258,47 @@ export const updateTheme = async (req, res) => {
       });
     }
 
-    const updatedFields = {
-      theme,
-      subSubCategory,
-      image: image ? image : existingTheme.image,
-    };
+    const updateData = {};
+    if (theme?.trim()) updateData.theme = theme.trim();
+    if (subSubCategory?.trim())
+      updateData.subSubCategory = subSubCategory.trim();
+    if (image) {
+      updateData.image = image;
+    } else {
+      updateData.image = existingTheme.image;
+    }
+    if (caption?.trim()) updateData.caption = caption.trim();
+    if (metaTitle?.trim()) updateData.metaTitle = metaTitle.trim();
+    if (metaDescription?.trim())
+      updateData.metaDescription = metaDescription.trim();
+    if (keywords?.trim()) updateData.keywords = keywords.trim();
+    if (faqs) {
+      try {
+        const parsedFaqs = typeof faqs === "string" ? JSON.parse(faqs) : faqs;
+        if (
+          !Array.isArray(parsedFaqs) ||
+          !parsedFaqs.every((faq) => faq.question?.trim() && faq.answer?.trim())
+        ) {
+          throw new Error();
+        }
+        updateData.faqs = parsedFaqs;
+      } catch {
+        return res.status(400).json({
+          success: false,
+          message:
+            "FAQs must be a valid JSON array of { question, answer } objects.",
+        });
+      }
+    }
+
+    // const updatedFields = {
+    //   theme,
+    //   subSubCategory,
+    //   image: image ? image : existingTheme.image,
+    // };
 
     // Update theme details
-    const updatedTheme = await Theme.findByIdAndUpdate(id, updatedFields, {
+    const updatedTheme = await Theme.findByIdAndUpdate(id, updateData, {
       new: true,
     });
 
@@ -271,6 +343,48 @@ export const deleteTheme = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to delete theme",
+      error: error.message,
+    });
+  }
+};
+
+
+export const getThemeById = async (req, res) => {
+  try {
+    const { id } = req.params; // Get theme id from URL params
+
+    // Find the theme by its ID
+    const theme = await Theme.findById(id)
+      .populate({
+        path: "subSubCategory",
+        select: "subSubCategory subCategory",
+        populate: {
+          path: "subCategory",
+          select: "subCategory category",
+          populate: {
+            path: "category",
+            select: "category",
+          },
+        },
+      })
+      .select("-__v"); // Remove __v field from the response
+
+    if (!theme) {
+      return res.status(404).json({
+        success: false,
+        message: "Theme not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: theme,
+    });
+  } catch (error) {
+    console.error("Error fetching theme by ID:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch theme",
       error: error.message,
     });
   }

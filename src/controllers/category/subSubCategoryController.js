@@ -16,7 +16,6 @@ export const createSubSubCategory = async (req, res) => {
       });
     }
 
-
     // Check if sub-subcategory already exists in this subcategory
     const existingSubSubCategory = await SubSubCategory.findOne({
       subSubCategory: { $regex: new RegExp(`^${subSubCategory}$`, "i") },
@@ -130,8 +129,6 @@ export const getAllSubSubCategories = async (req, res) => {
     });
   }
 };
-
-
 
 export const getSubSubCategoriesBySubCategory = async (req, res) => {
   try {
