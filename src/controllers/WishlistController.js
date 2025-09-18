@@ -66,18 +66,13 @@ export const getWishlist = async (req, res) => {
 
   try {
     const wishlist = await Wishlist.find({ customerId })
-      .populate("customerId", "firstName lastName email") // Populate customer details
-      .populate("serviceId", "name description images") // Populate service details with images
+      .populate("customerId", "firstName lastName email")
+      .populate("serviceId", "name description images")
       .sort({ createdAt: -1 });
 
-    if (!wishlist || wishlist.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "No wishlist found for this user." });
-    }
-
-    res.status(200).json({
-      message: "Wishlist fetched successfully",
+    // Always return 200
+    return res.status(200).json({
+      message: wishlist.length ? "Wishlist fetched successfully" : "Wishlist is empty",
       wishlist,
     });
   } catch (error) {
@@ -86,24 +81,20 @@ export const getWishlist = async (req, res) => {
   }
 };
 
+
 export const getWishlistCount = async (req, res) => {
   const { customerId } = req.params;
 
   try {
-    const wishlist = await Wishlist.find({ customerId });
+    const count = await Wishlist.countDocuments({ customerId });
 
-    if (!wishlist || wishlist.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "No wishlist found for this user." });
-    }
-
-    res.status(200).json({
-      message: "Wishlist Count fetched successfully",
-      count: wishlist.length,
+    return res.status(200).json({
+      message: count ? "Wishlist count fetched successfully" : "Wishlist is empty",
+      count,
     });
   } catch (error) {
-    console.error("Error fetching wishlist:", error);
-    res.status(500).json({ message: "Server error while fetching wishlist" });
+    console.error("Error fetching wishlist count:", error);
+    res.status(500).json({ message: "Server error while fetching wishlist count" });
   }
 };
+

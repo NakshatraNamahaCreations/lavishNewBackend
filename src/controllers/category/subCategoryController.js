@@ -122,6 +122,7 @@ export const updatedSubcategory = async (req, res) => {
       metaDescription,
       faqs,
     } = req.body;
+    console.log("req.body", req.body)
 
     const existing = await SubCategory.findById(id);
     if (!existing) {
@@ -295,8 +296,10 @@ export const getSubCategoriesByCategory = async (req, res) => {
 
 export const getSubcategoryByName = async (req, res) => {
   try {
-    const { name } = req.params;
-    const formattedName = name.trim(); // Use as-is
+    let { name } = req.params;
+    const formattedName = decodeURIComponent(name).trim(); // decode just in case
+
+    console.log("Searching subcategory:", formattedName);
 
     const subcategory = await SubCategory.findOne({
       subCategory: new RegExp(`^${formattedName}$`, "i"), // exact match, case-insensitive

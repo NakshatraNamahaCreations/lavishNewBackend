@@ -1,4 +1,4 @@
-import Category from "../../models/category/Category.js"
+import Category from "../../models/category/Category.js";
 import SubSubCategory from "../../models/category/Subsubcategory.js";
 import SubCategory from "../../models/category/Subcategory.js";
 import Subsubcategory from "../../models/category/Subsubcategory.js";
@@ -6,7 +6,16 @@ import Theme from "../../models/category/Theme.js";
 
 export const createSubSubCategory = async (req, res) => {
   try {
-    const { subSubCategory, subCategory, image } = req.body;
+    const {
+      subSubCategory,
+      subCategory,
+      image,
+      keywords,
+      caption,
+      metaTitle,
+      metaDescription,
+      faqs,
+    } = req.body;
 
     // Validate required fields
     if (!subSubCategory || !subCategory || !image) {
@@ -14,6 +23,25 @@ export const createSubSubCategory = async (req, res) => {
         success: false,
         message: "Sub-subcategory name, subcategory ID and image are required",
       });
+    }
+
+    let parsedFaqs = [];
+    if (faqs) {
+      try {
+        parsedFaqs = typeof faqs === "string" ? JSON.parse(faqs) : faqs;
+        if (
+          !Array.isArray(parsedFaqs) ||
+          !parsedFaqs.every((faq) => faq.question?.trim() && faq.answer?.trim())
+        ) {
+          throw new Error();
+        }
+      } catch {
+        return res.status(400).json({
+          success: false,
+          message:
+            "FAQs must be a valid JSON array of { question, answer } objects.",
+        });
+      }
     }
 
     // Check if sub-subcategory already exists in this subcategory
@@ -33,7 +61,12 @@ export const createSubSubCategory = async (req, res) => {
     const newSubSubCategory = new SubSubCategory({
       subSubCategory,
       subCategory,
-      image
+      image,
+      keywords,
+      caption,
+      metaTitle,
+      metaDescription,
+      faqs: parsedFaqs,
     });
 
     await newSubSubCategory.save();
@@ -165,7 +198,16 @@ export const getSubSubCategoriesBySubCategory = async (req, res) => {
 export const updateSubSubCategory = async (req, res) => {
   try {
     const { id } = req.params;
-    const { subSubCategory, subCategory, image } = req.body;
+    const {
+      subSubCategory,
+      subCategory,
+      image,
+      keywords,
+      caption,
+      metaTitle,
+      metaDescription,
+      faqs,
+    } = req.body;
 
     // Validate required fields
     if (!subSubCategory || !subCategory || !image) {
@@ -193,6 +235,7 @@ export const updateSubSubCategory = async (req, res) => {
       });
     }
 
+    // Prevent duplicate name in same subcategory
     const duplicateSubSubCategory = await SubSubCategory.findOne({
       _id: { $ne: id },
       subSubCategory: { $regex: new RegExp(`^${subSubCategory}$`, "i") },
@@ -206,17 +249,38 @@ export const updateSubSubCategory = async (req, res) => {
       });
     }
 
-    // Prepare updated fields
-    const updatedFields = {
-      subSubCategory,
-      subCategory,
-      image: image ? image : subSubCategoryExists.image,
-    };
+    // Build update object only with valid fields
+    const updateData = {};
+    if (subCategory?.trim()) updateData.subCategory = subCategory.trim();
+    if (subSubCategory?.trim()) updateData.subSubCategory = subSubCategory.trim();
+    if (image) updateData.image = image;
+    if (caption?.trim()) updateData.caption = caption.trim();
+    if (metaTitle?.trim()) updateData.metaTitle = metaTitle.trim();
+    if (metaDescription?.trim()) updateData.metaDescription = metaDescription.trim();
+    if (keywords?.trim()) updateData.keywords = keywords.trim();
 
-    // Update sub-subcategory
+    if (faqs) {
+      try {
+        const parsedFaqs = typeof faqs === "string" ? JSON.parse(faqs) : faqs;
+        if (
+          !Array.isArray(parsedFaqs) ||
+          !parsedFaqs.every((faq) => faq.question?.trim() && faq.answer?.trim())
+        ) {
+          throw new Error();
+        }
+        updateData.faqs = parsedFaqs;
+      } catch {
+        return res.status(400).json({
+          success: false,
+          message: "FAQs must be a valid JSON array of { question, answer } objects.",
+        });
+      }
+    }
+
+    // Perform update
     const updatedSubSubCategory = await SubSubCategory.findByIdAndUpdate(
       id,
-      updatedFields,
+      { $set: updateData },
       { new: true }
     );
 
@@ -241,6 +305,7 @@ export const updateSubSubCategory = async (req, res) => {
     });
   }
 };
+
 
 export const deleteSubSubCategory = async (req, res) => {
   try {
