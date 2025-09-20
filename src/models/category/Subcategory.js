@@ -51,4 +51,5 @@ const Subcategory =
   mongoose.models.Subcategory ||
   mongoose.model("Subcategory", SubcategorySchema);
 
+  
 export default Subcategory;

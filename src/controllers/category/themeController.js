@@ -143,7 +143,7 @@ export const getAllThemes = async (req, res) => {
           select: "subSubCategory subCategory",
           populate: {
             path: "subCategory",
-            select: "subCategory category",
+            select: "subCategory ",
             populate: {
               path: "category",
               select: "category",
@@ -186,7 +186,7 @@ export const getThemebySubSubcategoryId = async (req, res) => {
     })
       .populate({
         path: "subSubCategory",
-        select: "subSubCategory",
+        select: "subSubCategory keywords caption metaTitle metaDescription faqs subCategory createdAt ",
         populate: {
           path: "subCategory",
           select: "subCategory",

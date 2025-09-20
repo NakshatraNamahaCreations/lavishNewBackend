@@ -628,10 +628,10 @@ export const getServiceById = async (req, res) => {
     // console.log("Fetching service with ID:", serviceId);
 
     const service = await Service.findById(serviceId)
-      .populate("categoryId", "category")
-      .populate("subCategoryId", "subCategory")
-      .populate("subSubCategoryId", "subSubCategory")
-      .populate("themeId", "theme");
+      .populate("categoryId", "category ")
+      .populate("subCategoryId", "subCategory keywords caption metaTitle metaDescription faqs subCategory createdAt ")
+      .populate("subSubCategoryId", "subSubCategory keywords caption metaTitle metaDescription faqs subCategory createdAt ")
+      .populate("themeId", "theme keywords caption metaTitle metaDescription faqs subCategory createdAt ");
 
     if (!service) {
       return res.status(404).json({
@@ -715,10 +715,10 @@ export const getServicesByCategoryOrTheme = async (req, res) => {
         { subSubCategoryId: id },     // Check for subSubCategoryId match
         { themeId: id },              // Check for themeId match
       ]
-    }).populate("categoryId", "category")  // Optionally populate category field
-      .populate("subCategoryId", "subCategory")  // Optionally populate subCategory field
-      .populate("subSubCategoryId", "subSubCategory")  // Optionally populate subSubCategory field
-      .populate("themeId", "theme");  // Optionally populate theme field
+    }).populate("categoryId", "category",)  // Optionally populate category field
+      .populate("subCategoryId", "subCategory keywords caption metaTitle metaDescription faqs createdAt")  // Optionally populate subCategory field
+      .populate("subSubCategoryId", "subSubCategory keywords caption metaTitle metaDescription faqs createdAt")  // Optionally populate subSubCategory field
+      .populate("themeId", "theme keywords caption metaTitle metaDescription faqs createdAt");  // Optionally populate theme field
 
     if (!services || services.length === 0) {
       return res.status(404).json({
