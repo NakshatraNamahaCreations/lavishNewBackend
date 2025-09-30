@@ -1,6 +1,7 @@
 import Service from "../../models/serviceManagement/Service.js";
 import Subcategory from "../../models/category/Subcategory.js";
-import SubSubCategory from "../../models/category/Subsubcategory.js";
+import Subsubcategory from "../../models/category/Subsubcategory.js";
+import Theme from "../../models/category/Theme.js";
 
 // export const createService = async (req, res) => {
 //   console.log("req.body", req.body);
@@ -99,7 +100,6 @@ import SubSubCategory from "../../models/category/Subsubcategory.js";
 //     });
 //   }
 // };
-
 
 // export const updateService = async (req, res) => {
 //   try {
@@ -226,7 +226,6 @@ import SubSubCategory from "../../models/category/Subsubcategory.js";
 //   }
 // };
 
-
 export const createService = async (req, res) => {
   try {
     const {
@@ -268,7 +267,9 @@ export const createService = async (req, res) => {
     // Parse customizedInputs
     let parsedCustomizedInputs = [];
     try {
-      parsedCustomizedInputs = customizedInputs ? JSON.parse(customizedInputs) : [];
+      parsedCustomizedInputs = customizedInputs
+        ? JSON.parse(customizedInputs)
+        : [];
       if (!Array.isArray(parsedCustomizedInputs)) throw new Error();
       for (const input of parsedCustomizedInputs) {
         if (!input.label || !input.inputType) {
@@ -279,7 +280,9 @@ export const createService = async (req, res) => {
         }
       }
     } catch {
-      return res.status(400).json({ success: false, message: "Invalid customizedInputs format." });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid customizedInputs format." });
     }
 
     // Parse balloonColors and images
@@ -398,7 +401,9 @@ export const updateService = async (req, res) => {
         }
       }
     } catch {
-      return res.status(400).json({ success: false, message: "Invalid customizedInputs format." });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid customizedInputs format." });
     }
 
     let parsedBalloonColors = [];
@@ -457,8 +462,6 @@ export const updateService = async (req, res) => {
     });
   }
 };
-
-
 
 // export const getAllService = async (req, res) => {
 //   try {
@@ -637,7 +640,9 @@ export const getAllService = async (req, res) => {
         { serviceName: { $regex: search, $options: "i" } },
         { "categoryId.category": { $regex: search, $options: "i" } },
         { "subCategoryId.subCategory": { $regex: search, $options: "i" } },
-        { "subSubCategoryId.subSubCategory": { $regex: search, $options: "i" } },
+        {
+          "subSubCategoryId.subSubCategory": { $regex: search, $options: "i" },
+        },
         { "themeId.theme": { $regex: search, $options: "i" } },
       ];
     }
@@ -676,7 +681,10 @@ export const getAllService = async (req, res) => {
         },
       },
       {
-        $unwind: { path: "$subSubCategoryId", preserveNullAndEmptyArrays: true },
+        $unwind: {
+          path: "$subSubCategoryId",
+          preserveNullAndEmptyArrays: true,
+        },
       },
 
       // Lookup for theme
@@ -745,9 +753,18 @@ export const getServiceById = async (req, res) => {
 
     const service = await Service.findById(serviceId)
       .populate("categoryId", "category ")
-      .populate("subCategoryId", "subCategory keywords caption metaTitle metaDescription faqs subCategory createdAt ")
-      .populate("subSubCategoryId", "subSubCategory keywords caption metaTitle metaDescription faqs subCategory createdAt ")
-      .populate("themeId", "theme keywords caption metaTitle metaDescription faqs subCategory createdAt ");
+      .populate(
+        "subCategoryId",
+        "subCategory keywords caption metaTitle metaDescription faqs subCategory createdAt "
+      )
+      .populate(
+        "subSubCategoryId",
+        "subSubCategory keywords caption metaTitle metaDescription faqs subCategory createdAt "
+      )
+      .populate(
+        "themeId",
+        "theme keywords caption metaTitle metaDescription faqs subCategory createdAt "
+      );
 
     if (!service) {
       return res.status(404).json({
@@ -770,26 +787,23 @@ export const getServiceById = async (req, res) => {
   }
 };
 
-
-
 export const getServiceCount = async (req, res) => {
   try {
     const totalCount = await Service.countDocuments();
     console.log("Total number of documents:", totalCount);
     return res.status(200).json({
       success: true,
-      count: totalCount
-    })
+      count: totalCount,
+    });
   } catch (error) {
-    console.log("Error", error)
+    console.log("Error", error);
     return res.status(500).json({
       success: false,
       message: "Failed to fetch service Count",
       error: error.message,
     });
   }
-}
-
+};
 
 export const deleteService = async (req, res) => {
   try {
@@ -859,7 +873,7 @@ export const deleteService = async (req, res) => {
 
 export const getServicesByCategoryOrTheme = async (req, res) => {
   try {
-    const { id } = req.params; // Extract the ID from URL params
+    const { id } = req.params; 
     let { page = 1, limit = 12 } = req.query; // Extract page & limit from query, defaults if not passed
 
     page = parseInt(page);
@@ -867,11 +881,7 @@ export const getServicesByCategoryOrTheme = async (req, res) => {
 
     // Build query
     const query = {
-      $or: [
-        { subCategoryId: id },
-        { subSubCategoryId: id },
-        { themeId: id },
-      ],
+      $or: [{ subCategoryId: id }, { subSubCategoryId: id }, { themeId: id }],
     };
 
     // Count total services for pagination
@@ -897,9 +907,12 @@ export const getServicesByCategoryOrTheme = async (req, res) => {
       .sort({ createdAt: -1 }); // optional: newest first
 
     if (!services || services.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "No services found for this ID.",
+      return res.status(200).json({
+        success: true,
+        data: [],
+        page,
+        totalPages: 0,
+        totalServices: 0,
       });
     }
 
@@ -920,17 +933,18 @@ export const getServicesByCategoryOrTheme = async (req, res) => {
   }
 };
 
-
 export const getServicesBySubCategory = async (req, res) => {
   try {
     const { subCategoryName } = req.params; // Get subcategory name from URL
     const { page = 1, limit = 10 } = req.query; // Default: page 1, 10 per page
 
-    console.log(`➡️ Fetching services for subcategory: ${subCategoryName}, Page: ${page}, Limit: ${limit}`);
+    console.log(
+      `➡️ Fetching services for subcategory: ${subCategoryName}, Page: ${page}, Limit: ${limit}`
+    );
 
     // Step 1: Find the subcategory by name (case-insensitive)
     const subCategory = await Subcategory.findOne({
-      subCategory: { $regex: new RegExp(`^${subCategoryName}$`, "i") }
+      subCategory: { $regex: new RegExp(`^${subCategoryName}$`, "i") },
     });
 
     if (!subCategory) {
@@ -960,7 +974,9 @@ export const getServicesBySubCategory = async (req, res) => {
       .limit(Number(limit));
 
     if (!services.length) {
-      console.warn(`❌ No services found under '${subCategoryName}' on page ${page}.`);
+      console.warn(
+        `❌ No services found under '${subCategoryName}' on page ${page}.`
+      );
       return res.status(404).json({
         success: false,
         message: `No services found for '${subCategoryName}' subcategory on page ${page}.`,
@@ -977,9 +993,11 @@ export const getServicesBySubCategory = async (req, res) => {
       totalPages: Math.ceil(totalServices / limit),
       data: services,
     });
-
   } catch (error) {
-    console.error(`🔥 Error fetching services for '${req.params.subCategoryName}':`, error);
+    console.error(
+      `🔥 Error fetching services for '${req.params.subCategoryName}':`,
+      error
+    );
     return res.status(500).json({
       success: false,
       message: "Failed to fetch services.",
@@ -987,7 +1005,6 @@ export const getServicesBySubCategory = async (req, res) => {
     });
   }
 };
-
 
 export const getServiceBySearchValue = async (req, res) => {
   try {
@@ -1002,8 +1019,9 @@ export const getServiceBySearchValue = async (req, res) => {
 
     const regex = new RegExp(searchValue, "i");
 
-    const services = await Service.find({ serviceName: { $regex: regex } })
-      .limit(6)
+    const services = await Service.find({
+      serviceName: { $regex: regex },
+    }).limit(6);
 
     if (!services.length) {
       return res.status(404).json({
@@ -1026,9 +1044,64 @@ export const getServiceBySearchValue = async (req, res) => {
   }
 };
 
+export const findServicesByDynamicId = async (req, res) => {
+  try {
+    const { id } = req.params;
 
+    // ✅ Default pagination values
+    const limit = parseInt(req.query.limit) || 10; // default 10 per page
+    const page = parseInt(req.query.page) || 1;    // default page 1
+    const skip = (page - 1) * limit;
 
+    if (!id) {
+      return res.status(400).json({ success: false, message: "ID is required" });
+    }
 
+    // ✅ Fetch services with pagination
+    const [services, total] = await Promise.all([
+      Service.find({
+        $or: [
+          { subCategoryId: id },
+          { subSubCategoryId: id },
+          { themeId: id },
+        ],
+      })
+        .populate("categoryId", "name")
+        .populate("subCategoryId", "subCategory")
+        .populate("subSubCategoryId", "subSubCategory")
+        .populate("themeId", "theme")
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Service.countDocuments({
+        $or: [
+          { subCategoryId: id },
+          { subSubCategoryId: id },
+          { themeId: id },
+        ],
+      }),
+    ]);
 
+    if (!services.length) {
+      return res.status(404).json({
+        success: false,
+        message: "No services found for given ID",
+      });
+    }
 
-
+    return res.json({
+      success: true,
+      count: services.length,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+      data: services,
+    });
+  } catch (err) {
+    console.error("Error fetching services:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+};
