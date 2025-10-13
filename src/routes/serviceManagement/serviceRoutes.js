@@ -9,7 +9,7 @@ import {
   getServiceCount,
   getServicesBySubCategory,
   getServiceBySearchValue,
-
+  findServicesByDynamicId
 } from "../../controllers/serviceManagement/serviceController.js";
 import { adminauthenticateToken } from "../../middleware/admin/authMiddleware.js";
 import upload from "../../middleware/multer/multiUploadMulter.js";
@@ -48,5 +48,7 @@ router.get("/:serviceId", getServiceById);
 router.get("/filter/:id", getServicesByCategoryOrTheme);
 router.get("/by-subcategory/:subCategoryName", getServicesBySubCategory);
 router.get("/search/:searchValue", getServiceBySearchValue);
+// GET /api/services/ref/:id
+router.get("/similar-services/:id", findServicesByDynamicId);
 
 export default router;

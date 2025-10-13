@@ -7,7 +7,6 @@ import Theme from '../../models/category/Theme.js'
 export const createCategory = async (req, res) => {
     try {
         const { category } = req.body;
-
         // Validate required fields
         if (!category) {
             return res.status(400).json({
@@ -47,7 +46,6 @@ export const createCategory = async (req, res) => {
     }
 };
 
-
 export const getAllCategories = async (req, res) => {
     try {
         // const categories = await Category.find().sort({ createdAt: -1 });
@@ -68,23 +66,10 @@ export const getAllCategories = async (req, res) => {
     }
 };
 
-// export const deleteCategory = async (req, res) => {
-//     const { id } = req.params;
-//     try {
-//         const deleted = await Category.findByIdAndDelete(id);
-//         if (!deleted) {
-//             return res.status(404).json({ success: false, message: "Category not found" });
-//         }
-//         return res.status(200).json({ success: true, message: "Category deleted" });
-//     } catch (error) {
-//         return res.status(500).json({ success: false, message: error.message });
-//     }
-// };
 
 export const deleteCategory = async (req, res) => {
     const { id } = req.params;
-    try {
-        
+    try {  
       // 1. Find all Subcategories under Category
       const subcategories = await Subcategory.find({ category: id });
       const subcategoryIds = subcategories.map(sub => sub._id);
