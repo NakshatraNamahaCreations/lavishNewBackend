@@ -1,29 +1,3 @@
-// import mongoose from "mongoose";
-
-// const SubSubCategorySchema = new mongoose.Schema({
-//   subSubCategory: {
-//     type: String,
-//     required: true,
-//     trim: true
-//   },
-//   subCategory: {
-//     type: mongoose.Schema.Types.ObjectId,
-//     ref: "SubCategory",
-//     required: true
-//   },
-//   image: {
-//     type: String,
-//     required: true
-//   }
-// }, { timestamps: true });
-
-// // Ensure unique sub-sub-category name within a subcategory
-// SubSubCategorySchema.index({ subSubCategory: 1, subCategory: 1 }, { unique: true });
-
-// const SubSubCategory = mongoose.model("SubSubCategory", SubSubCategorySchema);
-
-// export default SubSubCategory;
-
 import mongoose from "mongoose";
 import Theme from "./Theme.js";
 
