@@ -4,6 +4,7 @@ import {
 } from "../utils/sendWhatsapp.js";
 
 export const notifyBooking = async (order) => {
+  console.log("🚀 notifyBooking() called");
   if (!order?.customerId?.mobile) {
     console.warn("⚠️ Skipping booking message: no mobile number found");
     return;
@@ -19,6 +20,14 @@ export const notifyBooking = async (order) => {
     console.warn("⚠️ No service item found in order.");
     return;
   }
+
+  console.log("🔎 notifyBooking fields", {
+    mobile,
+    hasItems: !!order.items?.length,
+    hasServiceImage: !!serviceItem.image,
+    imageUrl: serviceItem.image,
+    grandTotal: order.grandTotal,
+  });
 
   const imageUrl = serviceItem.image || "";
   const serviceName = serviceItem.serviceName || "Selected Service";
@@ -42,9 +51,11 @@ We’re excited to create unforgettable memories for you. For any help, feel fre
 – Lavish Eventzz 💖`;
 
   if (imageUrl) {
-    await sendWhatsappImage(mobile, imageUrl, caption);
+    const res = await sendWhatsappImage(mobile, imageUrl, caption);
+    console.log("notifyBooking sendWhatsappImage", res);
   } else {
-    await sendWhatsappMessage(mobile, caption);
+    const res = await sendWhatsappMessage(mobile, caption);
+    console.log("notifyBooking sendWhatsappMessage", res);
   }
 };
 

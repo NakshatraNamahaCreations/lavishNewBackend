@@ -377,6 +377,14 @@ router.get("/verify-payment", async (req, res) => {
       // ✅ 📱 Send WhatsApp Booking Confirmation
       try {
         await notifyBooking(populatedOrder);
+        // right before: await notifyBooking(populatedOrder);
+        console.log("📞 Triggering notifyBooking()", {
+          orderId: populatedOrder?.orderId,
+          hasCustomer: !!populatedOrder?.customerId,
+          mobile: populatedOrder?.customerId?.mobile,
+          items: populatedOrder?.items?.length,
+          grandTotal: populatedOrder?.grandTotal,
+        });
       } catch (whatsappError) {
         console.error(
           "Failed to send WhatsApp message:",
