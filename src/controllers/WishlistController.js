@@ -85,16 +85,19 @@ export const getWishlist = async (req, res) => {
 export const getWishlistCount = async (req, res) => {
   const { customerId } = req.params;
 
+  console.log("➡️ Received customerId:", customerId);  // <--- ADD THIS
+
+  if (!customerId) {
+    return res.status(400).json({ message: "Customer ID is missing" });
+  }
+
   try {
     const count = await Wishlist.countDocuments({ customerId });
-
-    return res.status(200).json({
-      message: count ? "Wishlist count fetched successfully" : "Wishlist is empty",
-      count,
-    });
+    return res.status(200).json({ count });
   } catch (error) {
     console.error("Error fetching wishlist count:", error);
     res.status(500).json({ message: "Server error while fetching wishlist count" });
   }
 };
+
 

@@ -140,44 +140,55 @@ export const login = async (req, res) => {
   }
 };
 
-// 1️⃣ Send OTP (Login or Signup)
+
 // export const sendOtp = async (req, res) => {
 //   const { mobile, email } = req.body;
+//   console.log("➡️ Incoming request body:", req.body);
 
 //   if (!mobile || !/^\d{10}$/.test(mobile)) {
+//     console.log("❌ Invalid mobile number");
 //     return res.status(400).json({ message: "Enter a valid 10-digit mobile number" });
 //   }
 
 //   try {
 //     let user = await User.findOne({ mobile });
+//     console.log("🔍 User found by mobile:", user);
 
-//     // New user, ask for email
-//     if (!user && !email) {
-//       return res.status(400).json({ message: "New number. Please provide email to continue" });
-//     }
+//     if (!user) {
+//       if (!email) {
+//         console.log("❗ New number, email not provided");
+//         return res.status(400).json({ message: "New number. Please provide email to continue" });
+//       }
 
-//     // If new user and email provided, create account
-//     if (!user && email) {
 //       const emailTaken = await User.findOne({ email });
 //       if (emailTaken) {
+//         console.log("❌ Email already taken by another user");
 //         return res.status(400).json({ message: "Email already in use with another number" });
 //       }
+
 //       user = new User({ mobile, email, isActive: true });
 //       await user.save();
+//       console.log("✅ New user created:", user);
 //     }
 
 //     const otp = generateOtp();
+//     console.log("🧾 Generated OTP:", otp);
 //     otpStore[mobile] = otp;
-//     setTimeout(() => delete otpStore[mobile], 10 * 60 * 1000); // Expires in 10 mins
+//     setTimeout(() => delete otpStore[mobile], 10 * 60 * 1000);
 
 //     await sendOtpToMobile(mobile, otp);
+//     console.log("✅ OTP sent successfully");
 
 //     res.status(200).json({ message: "OTP sent successfully" });
 //   } catch (err) {
-//     console.error("Send OTP error:", err.message);
+//     console.error("🔥 Send OTP error:", err.message);
 //     res.status(500).json({ message: "Failed to send OTP" });
 //   }
 // };
+
+
+
+// 2️⃣ Verify OTP
 
 export const sendOtp = async (req, res) => {
   const { mobile, email } = req.body;
@@ -210,7 +221,14 @@ export const sendOtp = async (req, res) => {
     }
 
     const otp = generateOtp();
-    console.log("🧾 Generated OTP:", otp);
+
+    // ⭐ CLEAR OTP LOG ⭐
+    console.log("\n==============================");
+    console.log("📲 NEW OTP GENERATED");
+    console.log("Mobile:", mobile);
+    console.log("OTP:", otp);
+    console.log("==============================\n");
+
     otpStore[mobile] = otp;
     setTimeout(() => delete otpStore[mobile], 10 * 60 * 1000);
 
@@ -225,8 +243,6 @@ export const sendOtp = async (req, res) => {
 };
 
 
-
-// 2️⃣ Verify OTP
 export const verifyOtp = async (req, res) => {
   const { mobile, otp } = req.body;
 

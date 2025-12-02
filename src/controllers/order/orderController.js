@@ -455,16 +455,17 @@ export const rescheduleOrder = async (req, res) => {
 
 export const getRecentOrders = async (req, res) => {
   try {
-    const recentOrders = await Order.find()
+    const recentOrders = await Order.find({
+      paymentStatus: { $in: ["PAID", "PARTIAL PAID"] } // Only include these statuses
+    })
       .sort({ createdAt: -1 }) // Sort by creation date in descending order
-      .limit(6) // Limit to 10 most recent orders
+      .limit(6) // Limit to 6 most recent orders
       .populate('customerId', 'name email') // Populate customer details
       .populate('items.refId'); // Populate service/addon details
 
     if (!recentOrders.length) {
       return res.status(404).json({ message: "No orders found" });
     }
-
 
     return res.status(200).json({
       success: true,
@@ -481,7 +482,6 @@ export const getRecentOrders = async (req, res) => {
     });
   }
 };
-
 
 
 export const updateOrderStatus = async (req, res) => {
