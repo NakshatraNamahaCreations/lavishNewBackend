@@ -1,10 +1,14 @@
+
+
+// my old working code
+
 import mongoose from "mongoose";
 
 const itemSchema = new mongoose.Schema({
   refId: {
     type: mongoose.Schema.Types.ObjectId,
     required: true,
-    refPath: "categoryType",
+    refPath: 'categoryType'
   },
   serviceName: { type: String, required: true },
   price: { type: Number, required: true },
@@ -14,165 +18,76 @@ const itemSchema = new mongoose.Schema({
   categoryType: {
     type: String,
     required: true,
-    enum: ["Service", "Addon"],
+    enum: ['Service', 'Addon']
   },
   customizedInputs: [
     {
       label: { type: String },
       value: mongoose.Schema.Types.Mixed,
     },
-  ],
+  ]
+
 });
 
-const orderSchema = new mongoose.Schema(
-  {
-    orderId: { type: String, required: true, unique: true },
-    eventDate: { type: String, required: true },
-    eventTime: { type: String, required: true },
-    rescheduledEventDate: { type: String },
-    rescheduledEventTime: { type: String },
-    rescheduledAddress: { type: String },
-    pincode: { type: String, required: true },
-    balloonsColor: {
-      type: [String],
-      required: true,
-    },
-    subTotal: { type: Number, required: true },
-    grandTotal: { type: Number, required: true },
-    paidAmount: { type: Number, required: true },
-    dueAmount: { type: Number, default: 0 },
-    deliveryCharges: { type: Number },
-    couponDiscount: { type: Number },
-    addNote: { type: String },
-    orderStatus: {
-      type: String,
-      required: true,
-      default: "created",
-    },
-    reason: { type: String },
-    address: { type: String, required: true },
-    customerName: { type: String, required: true },
-    customerId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-    items: [itemSchema],
-    occasion: { type: String },
-    otherOccasion: { type: String },
-    otherDecorLocation: { type: String },
-    decorLocation: { type: String },
-    source: { type: String },
-    slotExtraCharge: { type: Number, default: 0 },
-
-    paymentPercentage: {
-      type: Number,
-      required: true,
-      enum: [50, 100],
-    },
-    paymentStatus: {
-      type: String,
-      enum: ["PENDING", "PAID", "PARTIALLY_PAID", "FAILED"],
-      default: "PENDING",
-    },
-
-    // Add payment history for tracking partial payments
-    paymentHistory: [
-      {
-        amount: Number,
-        paymentDate: { type: Date, default: Date.now },
-        transactionId: String,
-        paymentMethod: String,
-        status: {
-          type: String,
-          enum: ["SUCCESS", "FAILED", "PENDING"],
-        },
-      },
-    ],
+const orderSchema = new mongoose.Schema({
+  orderId: { type: String, required: true, unique: true },
+  eventDate: { type: String, required: true },
+  eventTime: { type: String, required: true },
+  rescheduledEventDate: { type: String },
+  rescheduledEventTime: { type: String },
+  rescheduledAddress: { type: String },
+  pincode: { type: String, required: true },
+  balloonsColor: {
+    type: [String],
+    required: true,
   },
-  { timestamps: true }
-);
+  subTotal: { type: Number, required: true },
+  grandTotal: { type: Number, required: true },
+  deliveryCharges: { type: Number },
+  couponDiscount: { type: Number },
+  addNote: { type: String },
+  orderStatus: {
+    type: String,
+    required: true,
+    default: "created",
 
-const Order = mongoose.model("Order", orderSchema);
+  },
+  reason: { type: String },
+  address: { type: String, required: true },
+  customerName: { type: String, required: true },
+  customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  items: [itemSchema],
+  occasion: { type: String },
+  otherOccasion: { type: String },
+  otherDecorLocation: { type: String },
+  decorLocation: { type: String },
+  source: { type: String },
+  slotExtraCharge: { type: Number, default: 0 },
+  paymentStatus: {
+    type: String,
+    enum: ['PENDING', 'PAID', 'FAILED'],
+    default: 'PENDING',
+  },
+
+}, { timestamps: true });
+
+const Order = mongoose.model('Order', orderSchema);
 
 export default Order;
 
-// my old working code
+
+
+
+
+
+
+
+
+
+
 
 // import mongoose from "mongoose";
 
-// const itemSchema = new mongoose.Schema({
-//   refId: {
-//     type: mongoose.Schema.Types.ObjectId,
-//     required: true,
-//     refPath: 'categoryType'
-//   },
-//   serviceName: { type: String, required: true },
-//   price: { type: Number, required: true },
-//   originalPrice: { type: Number, required: true },
-//   quantity: { type: Number, default: 1 },
-//   image: { type: String },
-//   categoryType: {
-//     type: String,
-//     required: true,
-//     enum: ['Service', 'Addon']
-//   },
-//   customizedInputs: [
-//     {
-//       label: { type: String },
-//       value: mongoose.Schema.Types.Mixed,
-//     },
-//   ]
-
-// });
-
-// const orderSchema = new mongoose.Schema({
-//   orderId: { type: String, required: true, unique: true },
-//   eventDate: { type: String, required: true },
-//   eventTime: { type: String, required: true },
-//   rescheduledEventDate: { type: String },
-//   rescheduledEventTime: { type: String },
-//   rescheduledAddress: { type: String },
-//   pincode: { type: String, required: true },
-//   balloonsColor: {
-//     type: [String],
-//     required: true,
-//   },
-//   subTotal: { type: Number, required: true },
-//   grandTotal: { type: Number, required: true },
-//   deliveryCharges: { type: Number },
-//   couponDiscount: { type: Number },
-//   addNote: { type: String },
-//   orderStatus: {
-//     type: String,
-//     required: true,
-//     default: "created",
-
-//   },
-//   reason: { type: String },
-//   address: { type: String, required: true },
-//   customerName: { type: String, required: true },
-//   customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-//   items: [itemSchema],
-//   occasion: { type: String },
-//   otherOccasion: { type: String },
-//   otherDecorLocation: { type: String },
-//   decorLocation: { type: String },
-//   source: { type: String },
-//   slotExtraCharge: { type: Number, default: 0 },
-//   paymentStatus: {
-//     type: String,
-//     enum: ['PENDING', 'PAID', 'FAILED'],
-//     default: 'PENDING',
-//   },
-
-// }, { timestamps: true });
-
-// const Order = mongoose.model('Order', orderSchema);
-
-// export default Order;
-
-// import mongoose from "mongoose";
 
 // const itemSchema = new mongoose.Schema({
 //   refId: {
@@ -251,6 +166,8 @@ export default Order;
 //     default: 'PENDING',
 //   },
 // }, { timestamps: true });
+
+
 
 // const Order = mongoose.model('Order', orderSchema);
 
