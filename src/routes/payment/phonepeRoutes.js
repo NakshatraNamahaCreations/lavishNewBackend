@@ -446,6 +446,206 @@
 //   }
 // });
 
+
+// router.get("/", async (req, res) => {
+//   try {
+//     const page = parseInt(req.query.page) > 0 ? parseInt(req.query.page) : 1;
+//     const limit =
+//       parseInt(req.query.limit) > 0 ? parseInt(req.query.limit) : 10;
+//     const skip = (page - 1) * limit;
+//     const { search, bookingDate } = req.query;
+
+//     // Build match conditions
+//     let match = {};
+
+//     // Booking Date filter
+//     if (bookingDate) {
+//       const date = new Date(bookingDate);
+//       const nextDate = new Date(date);
+//       nextDate.setDate(date.getDate() + 1);
+//       match.createdAt = { $gte: date, $lt: nextDate };
+//     }
+
+//     // Aggregation pipeline
+//     let pipeline = [
+//       { $match: match },
+//       // Join with Order to get customerName and order details
+//       {
+//         $lookup: {
+//           from: "orders",
+//           localField: "orderId",
+//           foreignField: "orderId",
+//           as: "orderDetails",
+//         },
+//       },
+//       { $unwind: { path: "$orderDetails", preserveNullAndEmptyArrays: true } },
+//       // Join with User to get customer info
+//       {
+//         $lookup: {
+//           from: "users",
+//           localField: "customerId",
+//           foreignField: "_id",
+//           as: "customer",
+//         },
+//       },
+//       { $unwind: { path: "$customer", preserveNullAndEmptyArrays: true } },
+//     ];
+
+//     // Search filter
+//     if (search) {
+//       const searchRegex = new RegExp(search, "i");
+//       pipeline.push({
+//         $match: {
+//           $or: [
+//             { orderId: { $regex: searchRegex } },
+//             { amount: !isNaN(Number(search)) ? Number(search) : -1 },
+//             { "orderDetails.customerName": { $regex: searchRegex } },
+//             { "customer.firstName": { $regex: searchRegex } },
+//             { "customer.lastName": { $regex: searchRegex } },
+//           ],
+//         },
+//       });
+//     }
+
+//     // Count total
+//     const totalPipeline = [...pipeline, { $count: "total" }];
+//     const totalResult = await Payment.aggregate(totalPipeline);
+//     const total = totalResult[0]?.total || 0;
+
+//     // Pagination and sorting
+//     pipeline.push({ $sort: { createdAt: -1 } });
+//     pipeline.push({ $skip: skip });
+//     pipeline.push({ $limit: limit });
+
+//     // Project only needed fields
+//     pipeline.push({
+//       $project: {
+//         _id: 1,
+//         orderId: 1,
+//         amount: 1,
+//         status: 1,
+//         createdAt: 1,
+//         "orderDetails.customerName": 1,
+//         "customer.firstName": 1,
+//         "customer.lastName": 1,
+//         "customer.email": 1,
+//       },
+//     });
+
+//     const payments = await Payment.aggregate(pipeline);
+
+//     res.json({
+//       success: true,
+//       data: payments,
+//       pagination: {
+//         total,
+//         page,
+//         limit,
+//         pages: Math.ceil(total / limit),
+//       },
+//     });
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       error: `Failed to fetch payments: ${error.message}`,
+//     });
+//   }
+// });
+
+// router.get("/earnings", async (req, res) => {
+//   try {
+//     // ✅ 1. Total Earning (all time with status COMPLETED)
+//     const totalEarningsResult = await Payment.aggregate([
+//       { $match: { status: "COMPLETED" } },
+//       {
+//         $group: {
+//           _id: null,
+//           totalEarning: { $sum: "$amount" },
+//         },
+//       },
+//     ]);
+
+//     const totalEarning = totalEarningsResult[0]?.totalEarning || 0;
+
+//     // ✅ 2. Monthly Earning (current month with status COMPLETED)
+//     const startOfMonth = moment().startOf("month").toDate();
+//     const endOfMonth = moment().endOf("month").toDate();
+
+//     const monthlyEarningsResult = await Payment.aggregate([
+//       {
+//         $match: {
+//           status: "COMPLETED",
+//           createdAt: { $gte: startOfMonth, $lte: endOfMonth },
+//         },
+//       },
+//       {
+//         $group: {
+//           _id: null,
+//           monthlyEarning: { $sum: "$amount" },
+//         },
+//       },
+//     ]);
+
+//     const monthlyEarning = monthlyEarningsResult[0]?.monthlyEarning || 0;
+
+//     return res.status(200).json({
+//       success: true,
+//       totalEarning,
+//       monthlyEarning,
+//     });
+//   } catch (error) {
+//     console.error("❌ Error in getEarnings:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to fetch earnings",
+//       error: error.message,
+//     });
+//   }
+// });
+
+// // ✅ API: Monthly Earnings (only for COMPLETED payments)
+// router.get("/monthly-earnings", async (req, res) => {
+//   try {
+//     const year = new Date().getFullYear();
+
+//     const data = await Payment.aggregate([
+//       {
+//         $match: {
+//           status: "COMPLETED",
+//           createdAt: {
+//             $gte: new Date(`${year}-01-01`),
+//             $lte: new Date(`${year}-12-31`),
+//           },
+//         },
+//       },
+//       {
+//         $group: {
+//           _id: { $month: "$createdAt" },
+//           total: { $sum: "$amount" },
+//         },
+//       },
+//       { $sort: { _id: 1 } },
+//     ]);
+
+//     const monthlyEarnings = Array.from({ length: 12 }, (_, i) => {
+//       const monthData = data.find((d) => d._id === i + 1);
+//       return monthData ? monthData.total : 0;
+//     });
+
+//     return res.json({ success: true, monthlyEarnings });
+//   } catch (err) {
+//     console.error("Error fetching monthly earnings:", err);
+//     res
+//       .status(500)
+//       .json({ success: false, message: "Failed to fetch earnings" });
+//   }
+// });
+
+// export default router;
+
+
+
+
 import express from "express";
 import axios from "axios";
 import qs from "qs";
@@ -549,7 +749,7 @@ router.post("/initiate-payment", async (req, res) => {
       balloonsColor,
       subTotal,
       grandTotal,
-      merchantOrderId,
+      // REMOVE merchantOrderId from destructuring since we generate it
       paidAmount,
       dueAmount,
       deliveryCharges,
@@ -565,8 +765,8 @@ router.post("/initiate-payment", async (req, res) => {
       otherDecorLocation,
       source,
       slotExtraCharge,
-      paymentPercentage, // Added: payment percentage (50 or 100)
-      paymentType, // Added: payment type (partial or full)
+      paymentPercentage,
+      paymentType,
     } = req.body;
 
     // Validate required fields
@@ -617,7 +817,7 @@ router.post("/initiate-payment", async (req, res) => {
       subTotal,
       grandTotal,
       paidAmount,
-      dueAmount: dueAmount || 0, // ← Make sure this is saved
+      dueAmount: dueAmount || 0,
       deliveryCharges,
       couponDiscount: couponDiscount || 0,
       addNote,
@@ -661,7 +861,7 @@ router.post("/initiate-payment", async (req, res) => {
 
     const paymentData = {
       merchantOrderId: orderId,
-      amount: grandTotal * 100,
+      amount: paidAmount * 100,
       expireAfter: 1200,
       metaInfo: {
         udf1: "info1",
@@ -1194,3 +1394,4 @@ router.get("/monthly-earnings", async (req, res) => {
 });
 
 export default router;
+
