@@ -484,6 +484,104 @@ export const getRecentOrders = async (req, res) => {
 };
 
 
+// export const updateOrderStatus = async (req, res) => {
+//   try {
+//     const { orderId } = req.params;
+//     const {
+//       status,
+//       reason,
+//       rescheduledDate,
+//       rescheduledTime,
+//       rescheduledAddress
+//     } = req.body;
+
+//     if (!orderId || !status) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Order ID and status are required"
+//       });
+//     }
+
+//     const order = await Order.findById(orderId).populate("customerId");
+
+//     if (!order) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Order not found"
+//       });
+//     }
+
+//     if (status === "rescheduled") {
+//       if (!reason) {
+//         return res.status(400).json({
+//           success: false,
+//           message: "Reason is required for rescheduling."
+//         });
+//       }
+
+//       const hasRescheduleInfo = rescheduledDate || rescheduledTime || rescheduledAddress;
+//       if (!hasRescheduleInfo) {
+//         return res.status(400).json({
+//           success: false,
+//           message: "At least one of rescheduledDate, rescheduledTime, or rescheduledAddress is required."
+//         });
+//       }
+
+//       order.orderStatus = status;
+//       order.reason = reason;
+
+//       if (rescheduledDate) order.rescheduledEventDate = rescheduledDate;
+//       if (rescheduledTime) order.rescheduledEventTime = rescheduledTime;
+//       if (rescheduledAddress) order.rescheduledAddress = rescheduledAddress;
+//     }
+
+//     else if (status === "cancelled") {
+//       if (!reason) {
+//         return res.status(400).json({
+//           success: false,
+//           message: "Reason is required for cancellation."
+//         });
+//       }
+
+//       order.orderStatus = status;
+//       order.reason = reason;
+
+//       await Payment.updateOne(
+//         { orderId: order.orderId },
+//         { $set: { status: "CANCELLED" } }
+//       );
+//     }
+
+//     else {
+//       order.orderStatus = status;
+//     }
+
+//     await order.save();
+
+//     // ✅ Send notifications
+//     if (["cancelled", "rescheduled"].includes(status)) {
+//       await notifyEventUpdate(order, status);
+//     }
+
+//     if (status === "completed") {
+//       await notifyEventCompleted(order); 
+//     }
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "Order status updated successfully",
+//       order
+//     });
+
+//   } catch (error) {
+//     console.error("Error updating order status:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to update order status",
+//       error: error.message
+//     });
+//   }
+// };
 export const updateOrderStatus = async (req, res) => {
   try {
     const { orderId } = req.params;
@@ -492,7 +590,8 @@ export const updateOrderStatus = async (req, res) => {
       reason,
       rescheduledDate,
       rescheduledTime,
-      rescheduledAddress
+      rescheduledAddress,
+      extraPaymentMode
     } = req.body;
 
     if (!orderId || !status) {
@@ -511,6 +610,9 @@ export const updateOrderStatus = async (req, res) => {
       });
     }
 
+    // ===========================
+    // RESCHEDULE LOGIC
+    // ===========================
     if (status === "rescheduled") {
       if (!reason) {
         return res.status(400).json({
@@ -519,11 +621,14 @@ export const updateOrderStatus = async (req, res) => {
         });
       }
 
-      const hasRescheduleInfo = rescheduledDate || rescheduledTime || rescheduledAddress;
+      const hasRescheduleInfo =
+        rescheduledDate || rescheduledTime || rescheduledAddress;
+
       if (!hasRescheduleInfo) {
         return res.status(400).json({
           success: false,
-          message: "At least one of rescheduledDate, rescheduledTime, or rescheduledAddress is required."
+          message:
+            "At least one of rescheduledDate, rescheduledTime, or rescheduledAddress is required."
         });
       }
 
@@ -535,6 +640,9 @@ export const updateOrderStatus = async (req, res) => {
       if (rescheduledAddress) order.rescheduledAddress = rescheduledAddress;
     }
 
+    // ===========================
+    // CANCEL LOGIC
+    // ===========================
     else if (status === "cancelled") {
       if (!reason) {
         return res.status(400).json({
@@ -548,29 +656,109 @@ export const updateOrderStatus = async (req, res) => {
 
       await Payment.updateOne(
         { orderId: order.orderId },
-        { $set: { status: "CANCELLED" } }
+        { $set: { status: "FAILED" } }
       );
     }
 
+    // ===========================
+    // COMPLETED LOGIC
+    // ===========================
+    else if (status === "completed") {
+      const previousPaid = Number(order.paidAmount || 0);
+      const totalAmount = Number(order.grandTotal || 0);
+      const dueAmount = totalAmount - previousPaid;
+
+      const isHalfPayment = order.paymentPercentage === 50;
+      const isFullyPaid = order.paymentPercentage === 100;
+
+      // CASE 1: HALF PAYMENT (50%) → UPDATE EXISTING PAYMENT RECORD
+      if (isHalfPayment && dueAmount > 0) {
+        if (!extraPaymentMode || !["ONLINE", "CASH"].includes(extraPaymentMode)) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "Payment mode is required (ONLINE or CASH) to complete the remaining amount."
+          });
+        }
+
+        // Since orderId is unique, we can't create a new payment record
+        // So we'll UPDATE the existing payment record
+        await Payment.updateOne(
+          { orderId: order.orderId },
+          { 
+            $set: { 
+              amount: totalAmount, // Update to full amount
+              paymentMethod: "FULL", // Change from HALF to FULL
+              paymentMode: extraPaymentMode, // Update payment mode
+              status: "COMPLETED"
+            }
+          }
+        );
+
+        // Also update order with full payment
+        order.paidAmount = totalAmount;
+        order.dueAmount = 0;
+        order.paymentStatus = "PAID";
+        order.paymentPercentage = 100;
+        order.paymentType = "FULL"; // Update payment type if exists
+        order.orderStatus = "completed";
+      }
+
+      // CASE 2: FULL PAYMENT (100%) → ONLY CHANGE STATUS
+      else if (isFullyPaid && dueAmount === 0) {
+        order.orderStatus = "completed";
+        
+        // Update payment status to COMPLETED if not already
+        await Payment.updateOne(
+          { orderId: order.orderId },
+          { $set: { status: "COMPLETED" } }
+        );
+      }
+      
+      // CASE 3: Older orders without paymentPercentage field
+      else if (order.paymentStatus === "PAID" && dueAmount === 0) {
+        order.orderStatus = "completed";
+      }
+      
+      // CASE 4: Invalid state
+      else {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot mark as completed. Payment status: ${order.paymentStatus}, Due amount: ${dueAmount}`
+        });
+      }
+    }
+
+    // OTHER STATUSES
     else {
       order.orderStatus = status;
     }
 
-    await order.save();
+    // SAVE FINAL UPDATED ORDER
+    const updatedOrderResponse = await order.save();
 
-    // ✅ Send notifications
+    console.log("ORDER UPDATED SUCCESSFULLY:", {
+      orderId: updatedOrderResponse.orderId,
+      orderStatus: updatedOrderResponse.orderStatus,
+      paidAmount: updatedOrderResponse.paidAmount,
+      dueAmount: updatedOrderResponse.dueAmount,
+      paymentStatus: updatedOrderResponse.paymentStatus,
+      paymentPercentage: updatedOrderResponse.paymentPercentage
+    });
+
+    // SEND NOTIFICATIONS
     if (["cancelled", "rescheduled"].includes(status)) {
       await notifyEventUpdate(order, status);
     }
 
     if (status === "completed") {
-      await notifyEventCompleted(order); 
+      await notifyEventCompleted(order);
     }
 
     return res.status(200).json({
       success: true,
       message: "Order status updated successfully",
-      order
+      order: updatedOrderResponse
     });
 
   } catch (error) {
@@ -582,7 +770,6 @@ export const updateOrderStatus = async (req, res) => {
     });
   }
 };
-
 
 export const getRecentOrdersByUser = async (req, res) => {
   try {

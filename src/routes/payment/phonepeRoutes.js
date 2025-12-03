@@ -257,43 +257,44 @@ router.post("/initiate-payment", async (req, res) => {
   }
 });
 
-// Endpoint to verify payment
+// VERIFY PAYMENT
 router.get("/verify-payment", async (req, res) => {
   console.log("Verify-payment endpoint hit:", {
     query: req.query,
     timestamp: new Date().toISOString(),
   });
 
-  const { orderId, customerId, tx } = req.query; // <-- NEW (merchantTransactionId)
+  const { orderId, customerId, tx } = req.query;
 
   try {
-    // Validate query parameters
+    // --------------------------
+    // 1. VALIDATE INPUT
+    // --------------------------
     if (!orderId || !customerId || !tx) {
-      console.error("Missing query parameters:", { orderId, customerId, tx });
       return res.status(400).json({
         success: false,
         error: "Order ID, Customer ID and Transaction ID are required.",
       });
     }
 
-    // Find the order
+    // --------------------------
+    // 2. FIND ORDER
+    // --------------------------
     const order = await Order.findOne({ orderId, customerId });
+
     if (!order) {
-      console.error("Order not found:", { orderId, customerId });
       return res.status(404).json({
         success: false,
         error: "Order not found.",
       });
     }
 
-    // Get access token
+    // --------------------------
+    // 3. GET ACCESS TOKEN
+    // --------------------------
     const accessToken = await getAccessToken();
 
-    // IMPORTANT:
-    // PhonePe expects merchantOrderId (tx), NOT orderId
     const statusUrl = `https://api.phonepe.com/apis/pg/checkout/v2/order/${tx}/status`;
-
-    console.log("Status check URL:", statusUrl);
 
     const config = {
       method: "get",
@@ -304,82 +305,90 @@ router.get("/verify-payment", async (req, res) => {
       },
     };
 
-    console.log("Request configuration:", {
-      url: config.url,
-      method: config.method,
-      headers: { ...config.headers, Authorization: "O-Bearer <redacted>" },
-    });
-
-    // Make request to PhonePe
+    // --------------------------
+    // 4. CHECK PAYMENT STATUS
+    // --------------------------
     const response = await axios.request(config);
+    const phonePeData = response.data;
+
     console.log(
       "PhonePe status response:",
-      JSON.stringify(response.data, null, 2)
+      JSON.stringify(phonePeData, null, 2)
     );
 
-    if (!response.data || typeof response.data !== "object") {
+    if (!phonePeData || typeof phonePeData !== "object") {
       return res.status(500).json({
         success: false,
-        error: "Invalid response from payment gateway.",
+        error: "Invalid response from PhonePe.",
       });
     }
 
-    // SUCCESS CASE
-    if (response.data.state === "COMPLETED") {
-      // Payment type handling
-      const newPaymentStatus =
-        order.paymentType === "HALF" ? "PARTIAL PAID" : "PAID";
+    // --------------------------
+    // 5. PAYMENT SUCCESS
+    // --------------------------
+    if (phonePeData.state === "COMPLETED") {
+      const isHalfPayment = order.paymentType === "HALF";
 
-      // Update order payment status
+      const paidNow = Number(order.paidAmount); // amount already stored when order created
+      const newDueAmount = isHalfPayment
+        ? Number(order.grandTotal) - paidNow
+        : 0;
+
+      const newPaymentStatus = isHalfPayment ? "PARTIAL PAID" : "PAID";
+
+      // Update Order
       await Order.findOneAndUpdate(
         { orderId, customerId },
         {
           paymentStatus: newPaymentStatus,
+          paidAmount: paidNow,
+          dueAmount: newDueAmount,
           updatedAt: new Date(),
         },
         { new: true }
       );
 
-      // Create Payment entry (only paidAmount!)
-      const payment = new Payment({
+      // Add payment history
+      const paymentRecord = new Payment({
         orderId,
         customerId,
-        amount: order.paidAmount, // <-- FIXED (only paidAmount)
+        amount: paidNow,
         paymentMethod: order.paymentType,
         status: "COMPLETED",
       });
 
-      await payment.save();
+      await paymentRecord.save();
 
-      // Send email + WhatsApp
-      const populatedOrder = await Order.findOne({ orderId }).populate(
+      // Send Email
+      const fullOrder = await Order.findOne({ orderId }).populate(
         "customerId",
         "email firstName lastName mobile"
       );
 
-      if (populatedOrder?.customerId?.email) {
+      if (fullOrder?.customerId?.email) {
         try {
-          await sendOrderConfirmation(
-            populatedOrder.customerId.email,
-            populatedOrder
-          );
-        } catch (emailError) {
-          console.error("Failed to send email:", emailError);
+          await sendOrderConfirmation(fullOrder.customerId.email, fullOrder);
+        } catch (err) {
+          console.error("Failed to send email:", err);
         }
       }
 
+      // Send WhatsApp
       try {
-        await notifyBooking(populatedOrder);
-      } catch (whatsappError) {
-        console.error("Failed to send WhatsApp:", whatsappError.message);
+        await notifyBooking(fullOrder);
+      } catch (err) {
+        console.error("Failed to send WhatsApp:", err.message);
       }
 
+      // Redirect to SUCCESS page
       return res.redirect(
         `https://lavisheventzz.com/payment/success?orderId=${orderId}`
       );
     }
 
-    // FAILURE / CANCELLED CASE (do NOT delete partial-paid orders)
+    // --------------------------
+    // 6. PAYMENT FAILED / CANCELLED
+    // --------------------------
     await Order.findOneAndUpdate(
       { orderId, customerId },
       {
@@ -392,19 +401,13 @@ router.get("/verify-payment", async (req, res) => {
       `https://lavisheventzz.com/payment/failure?orderId=${orderId}`
     );
   } catch (error) {
+    // --------------------------
+    // 7. ERROR HANDLING
+    // --------------------------
     console.error("Payment verification error:", {
       message: error.message,
       response: error.response?.data,
       status: error.response?.status,
-      request: {
-        url: `https://api.phonepe.com/apis/pg/checkout/v2/order/${tx}/status`,
-        headers: {
-          Authorization: "O-Bearer <redacted>",
-          "Content-Type": "application/json",
-        },
-      },
-      orderId,
-      customerId,
     });
 
     return res.status(error.response?.status || 500).json({
@@ -608,21 +611,57 @@ router.get("/monthly-earnings", async (req, res) => {
   }
 });
 
-// testing the order id sequence
-router.get("/fix-counter", async (req, res) => {
+router.get("/payment-history/:orderId", async (req, res) => {
   try {
-    const result = await Counter.findOneAndUpdate(
-      { key: "order_seq" },
-      { value: 1751374712485 },
-      { upsert: true, new: true }
-    );
+    const { orderId } = req.params;
 
-    res.json({ success: true, result });
+    if (!orderId) {
+      return res.status(400).json({
+        success: false,
+        message: "Order ID is required",
+      });
+    }
+
+    // Find all payment records for this order
+    const payments = await Payment.find({ orderId: orderId })
+      .sort({ createdAt: 1 });
+
+    // Calculate total paid amount
+    const totalPaid = payments
+      .filter((p) => p.status === "COMPLETED")
+      .reduce((sum, payment) => sum + payment.amount, 0);
+
+    const response = {
+      success: true,
+      data: {
+        payments: payments.map((payment) => ({
+          _id: payment._id,
+          transactionId: payment.transactionId,
+          amount: payment.amount,
+          paymentType: payment.paymentType,
+          paymentMethod: payment.paymentMethod,
+          paymentMode: payment.paymentMode,
+          status: payment.status,
+          createdAt: payment.createdAt,
+          updatedAt: payment.updatedAt,
+        })),
+        summary: {
+          totalPaid,
+          totalPayments: payments.length,
+        }
+      },
+    };
+
+    return res.status(200).json(response);
   } catch (error) {
-    res.json({ success: false, error: error.message });
+    console.error("Error fetching payment history:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch payment history",
+      error: error.message,
+    });
   }
 });
-
 export default router;
 
 // import express from "express";
