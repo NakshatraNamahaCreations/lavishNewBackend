@@ -8,6 +8,7 @@ import Payment from "../../models/payment/Payment.js";
 import sendOrderConfirmation from "../../config/mailer.js";
 import { notifyBooking } from "../../services/eventNotification.js";
 import moment from "moment";
+import Counter  from "../../models/Counter.js"
 // Load environment variables from .env file
 dotenv.config();
 
@@ -15,24 +16,19 @@ const router = express.Router();
 
 const getNextOrderId = async () => {
   try {
-    // Find the most recent order based on orderId, sorted in descending order
-    const latestOrder = await Order.findOne().sort({ orderId: -1 });
+    const counter = await Counter.findOneAndUpdate(
+      { key: "order_seq" },
+      { $inc: { value: 1 } },
+      { new: true, upsert: true }
+    );
 
-    // If no orders exist, start with "ORD0001"
-    const lastOrderNum = latestOrder
-      ? parseInt(latestOrder.orderId.slice(3), 10)
-      : 0;
-
-    // Increment the order number
-    const nextOrderNum = lastOrderNum + 1;
-
-    // Return the new orderId, padded with leading zeros to 4 digits
-    return `ORD${nextOrderNum.toString().padStart(4, "0")}`;
+    return `ORD${counter.value}`;
   } catch (error) {
     console.error("Error generating order ID:", error);
-    throw new Error("Error generating order ID");
+    throw new Error("Order ID generation failed");
   }
 };
+
 
 // PhonePe API credentials
 const CLIENT_ID = process.env.CLIENT_ID || "SU2506192241154959940199";
@@ -91,6 +87,7 @@ async function getAccessToken() {
   }
 }
 
+
 // Endpoint to initiate payment
 router.post("/initiate-payment", async (req, res) => {
   try {
@@ -101,7 +98,6 @@ router.post("/initiate-payment", async (req, res) => {
       balloonsColor,
       subTotal,
       grandTotal,
-      merchantOrderId,
       paidAmount,
       dueAmount,
       deliveryCharges,
@@ -117,20 +113,22 @@ router.post("/initiate-payment", async (req, res) => {
       otherDecorLocation,
       source,
       slotExtraCharge,
+      paymentType  // FULL or HALF
     } = req.body;
 
-    console.log("req.body", req.body)
+    // Convert payment type → percentage
+    const paymentPercentage = paymentType === "HALF" ? 50 : 100;
 
-    // Validate required fields
+    // ---- SAFE VALIDATION ----
     if (
       !eventDate ||
       !eventTime ||
       !pincode ||
-      !subTotal ||
-      !grandTotal ||
-      !paidAmount ||
+      subTotal == null ||
+      grandTotal == null ||
+      paidAmount == null ||
       !address ||
-      !items ||
+      !Array.isArray(items) ||
       items.length === 0
     ) {
       return res.status(400).json({
@@ -139,20 +137,22 @@ router.post("/initiate-payment", async (req, res) => {
           eventDate: !eventDate,
           eventTime: !eventTime,
           pincode: !pincode,
-          subTotal: !subTotal,
-          grandTotal: !grandTotal,
-          paidAmount: !paidAmount,
-          deliveryCharges: !deliveryCharges,
+          subTotal: subTotal == null,
+          grandTotal: grandTotal == null,
+          paidAmount: paidAmount == null,
           address: !address,
           items: !items || items.length === 0,
         },
       });
     }
 
-    // Generate orderId on the backend
-    const orderId = await getNextOrderId(); // Generate unique orderId
+    // Generate backend orderId
+    const orderId = await getNextOrderId();
 
-    // Ensure each item has customizedInputs (default to empty array if not provided)
+    // Generate a UNIQUE PhonePe transaction id (never repeated)
+    const merchantTransactionId = `TXN_${Date.now()}_${Math.floor(Math.random() * 99999)}`;
+
+    // Ensure customizedInputs always exists
     const processedItems = items.map((item) => ({
       ...item,
       customizedInputs: Array.isArray(item.customizedInputs)
@@ -160,23 +160,25 @@ router.post("/initiate-payment", async (req, res) => {
         : [],
     }));
 
+    // ----- Save Order in DB -----
     const order = new Order({
-      orderId, // Use the backend generated orderId
+      orderId,
+      merchantTransactionId,       // <-- NEW
       eventDate,
       eventTime,
       pincode,
       balloonsColor: balloonsColor || [],
       subTotal,
       grandTotal,
-      paidAmount,
+      paidAmount,                  // half or full
       dueAmount: dueAmount || 0,
       deliveryCharges,
       couponDiscount: couponDiscount || 0,
       addNote,
       address,
       items: processedItems,
-      customerName: customerName,
-      customerId: customerId,
+      customerName,
+      customerId,
       orderStatus: "created",
       occasion,
       decorLocation,
@@ -184,24 +186,23 @@ router.post("/initiate-payment", async (req, res) => {
       otherDecorLocation,
       source,
       slotExtraCharge,
+      paymentPercentage,           // 50 or 100
+      paymentType,                 // FULL or HALF
       paymentStatus: "PENDING",
     });
 
-    const savedOrder = await order.save();
+    await order.save();
 
-    if (!grandTotal || !orderId) {
-      return res.status(400).json({
-        success: false,
-        error: "Amount and merchantOrderId are required",
-      });
-    }
-
+    // ---- Get PhonePe Access Token ----
     const accessToken = await getAccessToken();
-    console.log("Access token for payment:", accessToken);
 
+    // Charge ONLY paidAmount
+    const amountToCharge = paidAmount * 100;
+
+    // Payment Payload
     const paymentData = {
-      merchantOrderId: orderId,
-      amount: grandTotal * 100,
+      merchantOrderId: merchantTransactionId,  // MUST be unique
+      amount: amountToCharge,
       expireAfter: 1200,
       metaInfo: {
         udf1: "info1",
@@ -214,8 +215,7 @@ router.post("/initiate-payment", async (req, res) => {
         type: "PG_CHECKOUT",
         message: "Payment message used for collect requests",
         merchantUrls: {
-          // redirectUrl: `http://localhost:5000/api/payment/verify-payment?orderId=${orderId}&customerId=${customerId}`,
-          redirectUrl: `https://api.lavisheventzz.com/api/payment/verify-payment?orderId=${orderId}&customerId=${customerId}`,
+          redirectUrl: `https://api.lavisheventzz.com/api/payment/verify-payment?orderId=${orderId}&customerId=${customerId}&tx=${merchantTransactionId}`,
         },
       },
     };
@@ -230,32 +230,34 @@ router.post("/initiate-payment", async (req, res) => {
       data: JSON.stringify(paymentData),
     };
 
+    // Send request to PhonePe
     const response = await axios.request(config);
-    console.log("PhonePe payment response:", response.data);
 
     const paymentUrl = response.data.redirectUrl;
-    console.log("Payment URL:", paymentUrl);
+
     if (!paymentUrl) {
-      throw new Error("No payment URL found in PhonePe response");
+      throw new Error("No payment URL returned from PhonePe.");
     }
 
-    res.json({
+    // ---- SUCCESS ----
+    return res.json({
       success: true,
-      data: {
-        paymentUrl,
-      },
+      data: { paymentUrl },
     });
+
   } catch (error) {
     console.error(
       "Payment initiation error:",
       error.response?.data || error.message
     );
-    res.status(500).json({
+
+    return res.status(500).json({
       success: false,
       error: `Payment initiation failed: ${error.message}`,
     });
   }
 });
+
 
 // Endpoint to verify payment
 router.get("/verify-payment", async (req, res) => {
@@ -264,19 +266,19 @@ router.get("/verify-payment", async (req, res) => {
     timestamp: new Date().toISOString(),
   });
 
-  const { orderId, customerId } = req.query;
+  const { orderId, customerId, tx } = req.query; // <-- NEW (merchantTransactionId)
 
   try {
     // Validate query parameters
-    if (!orderId || !customerId) {
-      console.error("Missing query parameters:", { orderId, customerId });
+    if (!orderId || !customerId || !tx) {
+      console.error("Missing query parameters:", { orderId, customerId, tx });
       return res.status(400).json({
         success: false,
-        error: "Order ID and Customer ID are required.",
+        error: "Order ID, Customer ID and Transaction ID are required.",
       });
     }
 
-    // Find the order in the database
+    // Find the order
     const order = await Order.findOne({ orderId, customerId });
     if (!order) {
       console.error("Order not found:", { orderId, customerId });
@@ -288,13 +290,11 @@ router.get("/verify-payment", async (req, res) => {
 
     // Get access token
     const accessToken = await getAccessToken();
-    console.log(
-      "Access token for verification:",
-      accessToken ? "Generated" : "Failed to generate"
-    );
 
-    // Construct the status check URL
-    const statusUrl = `https://api.phonepe.com/apis/pg/checkout/v2/order/${orderId}/status`;
+    // IMPORTANT:
+    // PhonePe expects merchantOrderId (tx), NOT orderId
+    const statusUrl = `https://api.phonepe.com/apis/pg/checkout/v2/order/${tx}/status`;
+
     console.log("Status check URL:", statusUrl);
 
     const config = {
@@ -306,114 +306,96 @@ router.get("/verify-payment", async (req, res) => {
       },
     };
 
-    // Log the full request configuration (redact sensitive data)
     console.log("Request configuration:", {
       url: config.url,
       method: config.method,
-      headers: {
-        ...config.headers,
-        Authorization: "O-Bearer <redacted>",
-      },
+      headers: { ...config.headers, Authorization: "O-Bearer <redacted>" },
     });
 
-    // Make request to PhonePe to check payment status
+    // Make request to PhonePe
     const response = await axios.request(config);
-    console.log(
-      "PhonePe status response:",
-      JSON.stringify(response.data, null, 2)
-    );
+    console.log("PhonePe status response:", JSON.stringify(response.data, null, 2));
 
-    // Validate response structure
     if (!response.data || typeof response.data !== "object") {
-      console.error("Invalid response structure from PhonePe:", response.data);
       return res.status(500).json({
         success: false,
         error: "Invalid response from payment gateway.",
       });
     }
 
+    // SUCCESS CASE
     if (response.data.state === "COMPLETED") {
+
+      // Payment type handling
+      const newPaymentStatus =
+        order.paymentType === "HALF" ? "PARTIAL_PAID" : "PAID";
+
+      // Update order payment status
       await Order.findOneAndUpdate(
         { orderId, customerId },
         {
-          paymentStatus: "PAID",
+          paymentStatus: newPaymentStatus,
           updatedAt: new Date(),
         },
         { new: true }
       );
 
+      // Create Payment entry (only paidAmount!)
       const payment = new Payment({
         orderId,
         customerId,
-        amount: order.grandTotal,
+        amount: order.paidAmount,   // <-- FIXED (only paidAmount)
+        paymentMethod: order.paymentType,
         status: "COMPLETED",
       });
 
       await payment.save();
 
+      // Send email + WhatsApp
       const populatedOrder = await Order.findOne({ orderId }).populate(
         "customerId",
         "email firstName lastName mobile"
       );
-      if (
-        populatedOrder &&
-        populatedOrder.customerId &&
-        populatedOrder.customerId.email
-      ) {
-        const customerEmail = populatedOrder.customerId.email;
+
+      if (populatedOrder?.customerId?.email) {
         try {
-          await sendOrderConfirmation(customerEmail, populatedOrder);
+          await sendOrderConfirmation(populatedOrder.customerId.email, populatedOrder);
         } catch (emailError) {
-          console.error(
-            "Failed to send email, but payment was successful:",
-            emailError
-          );
+          console.error("Failed to send email:", emailError);
         }
-      } else {
-        console.warn("Customer email not found for order:", {
-          orderId,
-          customerId,
-        });
       }
 
-      // ✅ 📱 Send WhatsApp Booking Confirmation
       try {
         await notifyBooking(populatedOrder);
-        // right before: await notifyBooking(populatedOrder);
-        console.log("📞 Triggering notifyBooking()", {
-          orderId: populatedOrder?.orderId,
-          hasCustomer: !!populatedOrder?.customerId,
-          mobile: populatedOrder?.customerId?.mobile,
-          items: populatedOrder?.items?.length,
-          grandTotal: populatedOrder?.grandTotal,
-        });
       } catch (whatsappError) {
-        console.error(
-          "Failed to send WhatsApp message:",
-          whatsappError.message
-        );
+        console.error("Failed to send WhatsApp:", whatsappError.message);
       }
 
-      res.redirect(
+      return res.redirect(
         `https://lavisheventzz.com/payment/success?orderId=${orderId}`
-        // `http://localhost:5173/payment/success?orderId=${orderId}`
-      );
-    } else {
-      // Delete the order if payment failed or was canceled
-      await Order.findOneAndDelete({ orderId, customerId });
-
-      res.redirect(
-        `https://lavisheventzz.com/payment/failure?orderId=${orderId}`
-        // `http://localhost:5173/payment/failure?orderId=${orderId}`
       );
     }
+
+    // FAILURE / CANCELLED CASE (do NOT delete partial-paid orders)
+    await Order.findOneAndUpdate(
+      { orderId, customerId },
+      {
+        paymentStatus: "FAILED",
+        updatedAt: new Date(),
+      }
+    );
+
+    return res.redirect(
+      `https://lavisheventzz.com/payment/failure?orderId=${orderId}`
+    );
+
   } catch (error) {
     console.error("Payment verification error:", {
       message: error.message,
       response: error.response?.data,
       status: error.response?.status,
       request: {
-        url: `https://api.phonepe.com/apis/pg/checkout/v2/order/${orderId}/status`,
+        url: `https://api.phonepe.com/apis/pg/checkout/v2/order/${tx}/status`,
         headers: {
           Authorization: "O-Bearer <redacted>",
           "Content-Type": "application/json",
@@ -423,27 +405,9 @@ router.get("/verify-payment", async (req, res) => {
       customerId,
     });
 
-    // Handle specific error cases
-    let statusCode = error.response?.status || 500;
-    let errorMessage = `Payment verification failed: ${error.message}`;
-
-    if (
-      statusCode === 400 &&
-      error.response?.data?.message === "Bad Request - Api Mapping Not Found"
-    ) {
-      errorMessage =
-        "Invalid API endpoint or parameters. Check PhonePe API configuration and orderId.";
-    } else if (statusCode === 401) {
-      errorMessage =
-        "Authentication failed with payment gateway. Check API credentials.";
-    } else if (statusCode === 404) {
-      errorMessage =
-        "Payment status not found for the given order. Verify orderId.";
-    }
-
-    res.status(statusCode).json({
+    return res.status(error.response?.status || 500).json({
       success: false,
-      error: errorMessage,
+      error: `Payment verification failed: ${error.message}`,
     });
   }
 });
@@ -641,6 +605,22 @@ router.get("/monthly-earnings", async (req, res) => {
     res
       .status(500)
       .json({ success: false, message: "Failed to fetch earnings" });
+  }
+});
+
+
+// testing the order id sequence
+router.get("/fix-counter", async (req, res) => {
+  try {
+    const result = await Counter.findOneAndUpdate(
+      { key: "order_seq" },
+      { value: 1751374712485 },
+      { upsert: true, new: true }
+    );
+
+    res.json({ success: true, result });
+  } catch (error) {
+    res.json({ success: false, error: error.message });
   }
 });
 

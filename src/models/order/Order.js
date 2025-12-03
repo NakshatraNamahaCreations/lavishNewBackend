@@ -1,7 +1,4 @@
 
-
-// my old working code
-
 import mongoose from "mongoose";
 
 const itemSchema = new mongoose.Schema({
@@ -68,6 +65,8 @@ const orderSchema = new mongoose.Schema({
     enum: ['PENDING', 'PAID', 'FAILED'],
     default: 'PENDING',
   },
+  merchantTransactionId: { type: String, required: true }
+  
 
 }, { timestamps: true });
 
@@ -76,18 +75,9 @@ const Order = mongoose.model('Order', orderSchema);
 export default Order;
 
 
-
-
-
-
-
-
-
-
-
+// my old working code
 
 // import mongoose from "mongoose";
-
 
 // const itemSchema = new mongoose.Schema({
 //   refId: {
@@ -128,8 +118,6 @@ export default Order;
 //   },
 //   subTotal: { type: Number, required: true },
 //   grandTotal: { type: Number, required: true },
-//   paidAmount: { type: Number, required: true }, // Make sure this exists
-//   dueAmount: { type: Number, default: 0 }, // Make sure this exists
 //   deliveryCharges: { type: Number },
 //   couponDiscount: { type: Number },
 //   addNote: { type: String },
@@ -137,6 +125,7 @@ export default Order;
 //     type: String,
 //     required: true,
 //     default: "created",
+
 //   },
 //   reason: { type: String },
 //   address: { type: String, required: true },
@@ -149,26 +138,21 @@ export default Order;
 //   decorLocation: { type: String },
 //   source: { type: String },
 //   slotExtraCharge: { type: Number, default: 0 },
-//   // Add these new fields:
-//   paymentType: {
-//     type: String,
-//     enum: ['partial', 'full'],
-//     default: 'full',
-//   },
-//   paymentPercentage: {
-//     type: String,
-//     enum: ['50', '100'],
-//     default: '100',
-//   },
 //   paymentStatus: {
 //     type: String,
-//     enum: ['PENDING', 'PAID', 'PARTIAL PAID', 'FAILED'],
+//     enum: ['PENDING', 'PAID', 'FAILED'],
 //     default: 'PENDING',
 //   },
+
 // }, { timestamps: true });
-
-
 
 // const Order = mongoose.model('Order', orderSchema);
 
 // export default Order;
+
+
+
+
+
+
+

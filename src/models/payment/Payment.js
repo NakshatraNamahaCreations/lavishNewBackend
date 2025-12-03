@@ -1,34 +1,48 @@
 import mongoose from "mongoose";
 
-// Define the schema for Payment
 const paymentSchema = new mongoose.Schema(
   {
     orderId: {
       type: String,
       required: true,
-      unique: true, 
+      unique: true,
     },
     customerId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User", 
+      ref: "User",
       required: true,
     },
     amount: {
       type: Number,
       required: true,
     },
-    status: {
+
+    // FULL = 100%, HALF = 50%
+    paymentMethod: {
       type: String,
+      enum: ["FULL", "HALF"],
+      required: true,
     },
 
+    // ONLINE / CASH (for remaining payments)
+    paymentMode: {
+      type: String,
+      enum: ["ONLINE", "CASH"],
+      default: "ONLINE",
+    },
+
+    status: {
+      type: String,
+      enum: ["PENDING", "COMPLETED", "FAILED"],
+      default: "PENDING",
+    },
   },
-  { timestamps: true } 
+  { timestamps: true }
 );
 
-
 const Payment = mongoose.model("Payment", paymentSchema);
-
 export default Payment;
+
 
 // import mongoose from "mongoose";
 
@@ -38,41 +52,25 @@ export default Payment;
 //     orderId: {
 //       type: String,
 //       required: true,
+//       unique: true, 
 //     },
 //     customerId: {
 //       type: mongoose.Schema.Types.ObjectId,
-//       ref: "User",
+//       ref: "User", 
 //       required: true,
 //     },
 //     amount: {
 //       type: Number,
 //       required: true,
 //     },
-//     paymentType: {
-//       type: String,
-//       enum: ["partial", "full", "final"],
-//       default: "full",
-//     },
-//     paymentPercentage: {
-//       type: String,
-//       enum: ["50", "100"],
-//       default: "100",
-//     },
-//     paymentMethod: { // ← Add this field
-//       type: String,
-//       enum: ["online", "cash", ],
-//       default: "online",
-//     },
 //     status: {
 //       type: String,
-//       enum: ["PENDING", "COMPLETED", "FAILED", "CANCELLED"],
-//       default: "PENDING",
 //     },
-//     transactionId: { type: String },
-//     notes: { type: String },
+
 //   },
-//   { timestamps: true }
+//   { timestamps: true } 
 // );
+
 
 // const Payment = mongoose.model("Payment", paymentSchema);
 

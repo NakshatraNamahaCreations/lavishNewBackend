@@ -60,6 +60,9 @@ app.use(express.urlencoded({ extended: true, limit: "100mb" }));
 // ✅ Serve static files from the public directory
 app.use(express.static("public"));
 
+
+
+
 // API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/admin/auth", adminAuthRoutes);
