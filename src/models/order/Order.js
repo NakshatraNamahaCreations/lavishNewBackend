@@ -62,7 +62,7 @@ const orderSchema = new mongoose.Schema({
   slotExtraCharge: { type: Number, default: 0 },
   paymentStatus: {
     type: String,
-    enum: ['PENDING', 'PAID', 'FAILED'],
+    enum: ['PENDING', 'PAID','PARTIAL PAID', 'FAILED'],
     default: 'PENDING',
   },
   merchantTransactionId: { type: String, required: true }

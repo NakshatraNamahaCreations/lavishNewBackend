@@ -8,7 +8,7 @@ import Payment from "../../models/payment/Payment.js";
 import sendOrderConfirmation from "../../config/mailer.js";
 import { notifyBooking } from "../../services/eventNotification.js";
 import moment from "moment";
-import Counter  from "../../models/Counter.js"
+import Counter from "../../models/Counter.js";
 // Load environment variables from .env file
 dotenv.config();
 
@@ -28,7 +28,6 @@ const getNextOrderId = async () => {
     throw new Error("Order ID generation failed");
   }
 };
-
 
 // PhonePe API credentials
 const CLIENT_ID = process.env.CLIENT_ID || "SU2506192241154959940199";
@@ -87,7 +86,6 @@ async function getAccessToken() {
   }
 }
 
-
 // Endpoint to initiate payment
 router.post("/initiate-payment", async (req, res) => {
   try {
@@ -113,7 +111,7 @@ router.post("/initiate-payment", async (req, res) => {
       otherDecorLocation,
       source,
       slotExtraCharge,
-      paymentType  // FULL or HALF
+      paymentType, // FULL or HALF
     } = req.body;
 
     // Convert payment type → percentage
@@ -150,7 +148,9 @@ router.post("/initiate-payment", async (req, res) => {
     const orderId = await getNextOrderId();
 
     // Generate a UNIQUE PhonePe transaction id (never repeated)
-    const merchantTransactionId = `TXN_${Date.now()}_${Math.floor(Math.random() * 99999)}`;
+    const merchantTransactionId = `TXN_${Date.now()}_${Math.floor(
+      Math.random() * 99999
+    )}`;
 
     // Ensure customizedInputs always exists
     const processedItems = items.map((item) => ({
@@ -163,14 +163,14 @@ router.post("/initiate-payment", async (req, res) => {
     // ----- Save Order in DB -----
     const order = new Order({
       orderId,
-      merchantTransactionId,       // <-- NEW
+      merchantTransactionId, // <-- NEW
       eventDate,
       eventTime,
       pincode,
       balloonsColor: balloonsColor || [],
       subTotal,
       grandTotal,
-      paidAmount,                  // half or full
+      paidAmount, // half or full
       dueAmount: dueAmount || 0,
       deliveryCharges,
       couponDiscount: couponDiscount || 0,
@@ -186,8 +186,8 @@ router.post("/initiate-payment", async (req, res) => {
       otherDecorLocation,
       source,
       slotExtraCharge,
-      paymentPercentage,           // 50 or 100
-      paymentType,                 // FULL or HALF
+      paymentPercentage, // 50 or 100
+      paymentType, // FULL or HALF
       paymentStatus: "PENDING",
     });
 
@@ -201,7 +201,7 @@ router.post("/initiate-payment", async (req, res) => {
 
     // Payment Payload
     const paymentData = {
-      merchantOrderId: merchantTransactionId,  // MUST be unique
+      merchantOrderId: merchantTransactionId, // MUST be unique
       amount: amountToCharge,
       expireAfter: 1200,
       metaInfo: {
@@ -244,7 +244,6 @@ router.post("/initiate-payment", async (req, res) => {
       success: true,
       data: { paymentUrl },
     });
-
   } catch (error) {
     console.error(
       "Payment initiation error:",
@@ -257,7 +256,6 @@ router.post("/initiate-payment", async (req, res) => {
     });
   }
 });
-
 
 // Endpoint to verify payment
 router.get("/verify-payment", async (req, res) => {
@@ -314,7 +312,10 @@ router.get("/verify-payment", async (req, res) => {
 
     // Make request to PhonePe
     const response = await axios.request(config);
-    console.log("PhonePe status response:", JSON.stringify(response.data, null, 2));
+    console.log(
+      "PhonePe status response:",
+      JSON.stringify(response.data, null, 2)
+    );
 
     if (!response.data || typeof response.data !== "object") {
       return res.status(500).json({
@@ -325,10 +326,9 @@ router.get("/verify-payment", async (req, res) => {
 
     // SUCCESS CASE
     if (response.data.state === "COMPLETED") {
-
       // Payment type handling
       const newPaymentStatus =
-        order.paymentType === "HALF" ? "PARTIAL_PAID" : "PAID";
+        order.paymentType === "HALF" ? "PARTIAL PAID" : "PAID";
 
       // Update order payment status
       await Order.findOneAndUpdate(
@@ -344,7 +344,7 @@ router.get("/verify-payment", async (req, res) => {
       const payment = new Payment({
         orderId,
         customerId,
-        amount: order.paidAmount,   // <-- FIXED (only paidAmount)
+        amount: order.paidAmount, // <-- FIXED (only paidAmount)
         paymentMethod: order.paymentType,
         status: "COMPLETED",
       });
@@ -359,7 +359,10 @@ router.get("/verify-payment", async (req, res) => {
 
       if (populatedOrder?.customerId?.email) {
         try {
-          await sendOrderConfirmation(populatedOrder.customerId.email, populatedOrder);
+          await sendOrderConfirmation(
+            populatedOrder.customerId.email,
+            populatedOrder
+          );
         } catch (emailError) {
           console.error("Failed to send email:", emailError);
         }
@@ -388,7 +391,6 @@ router.get("/verify-payment", async (req, res) => {
     return res.redirect(
       `https://lavisheventzz.com/payment/failure?orderId=${orderId}`
     );
-
   } catch (error) {
     console.error("Payment verification error:", {
       message: error.message,
@@ -411,8 +413,6 @@ router.get("/verify-payment", async (req, res) => {
     });
   }
 });
-
-
 
 router.get("/", async (req, res) => {
   try {
@@ -608,7 +608,6 @@ router.get("/monthly-earnings", async (req, res) => {
   }
 });
 
-
 // testing the order id sequence
 router.get("/fix-counter", async (req, res) => {
   try {
@@ -625,15 +624,6 @@ router.get("/fix-counter", async (req, res) => {
 });
 
 export default router;
-
-
-
-
-
-
-
-
-
 
 // import express from "express";
 // import axios from "axios";
