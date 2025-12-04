@@ -353,8 +353,11 @@ router.get("/verify-payment", async (req, res) => {
         orderId,
         customerId,
         amount: paidNow,
-        paymentMethod: order.paymentType,
+        paymentType: order.paymentType === "HALF" ? "INITIAL" : "FULL", // or FINAL based on your logic
+        paymentMethod: order.paymentType, // FULL or HALF
+        paymentMode: "ONLINE",
         status: "COMPLETED",
+        transactionId: tx,
       });
 
       await paymentRecord.save();
@@ -623,8 +626,9 @@ router.get("/payment-history/:orderId", async (req, res) => {
     }
 
     // Find all payment records for this order
-    const payments = await Payment.find({ orderId: orderId })
-      .sort({ createdAt: 1 });
+    const payments = await Payment.find({ orderId: orderId }).sort({
+      createdAt: 1,
+    });
 
     // Calculate total paid amount
     const totalPaid = payments
@@ -648,7 +652,7 @@ router.get("/payment-history/:orderId", async (req, res) => {
         summary: {
           totalPaid,
           totalPayments: payments.length,
-        }
+        },
       },
     };
 
