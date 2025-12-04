@@ -161,19 +161,62 @@ export const getUserPastOrders = async (req, res) => {
 
 
 
+// export const getUserUpcomingOrders = async (req, res) => {
+//   try {
+//     const { userId } = req.params;
+//     const now = moment();
+
+//     // Fetch all orders for the user
+//     const allOrders = await Order.find({ customerId: userId });
+
+//     // Filter only upcoming orders based on combined eventDate + endTime
+//     const upcomingOrders = allOrders.filter(order => {
+//       if (!order.eventDate || !order.eventTime) return false;
+
+//       const [_, endTime] = order.eventTime.split(" - ");
+//       const combinedDateTime = moment(
+//         `${order.eventDate} ${endTime}`,
+//         "MMM DD, YYYY hh:mm A"
+//       );
+
+//       return combinedDateTime.isSameOrAfter(now);
+//     });
+
+//     // ✅ Sort by createdAt DESC (most recently booked first)
+//     upcomingOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+//     res.status(200).json({
+//       success: true,
+//       data: upcomingOrders,
+//       length: upcomingOrders.length,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching upcoming orders:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Error fetching upcoming orders",
+//       error: error.message,
+//     });
+//   }
+// };
+
 export const getUserUpcomingOrders = async (req, res) => {
   try {
     const { userId } = req.params;
     const now = moment();
 
-    // Fetch all orders for the user
-    const allOrders = await Order.find({ customerId: userId });
+    // Fetch orders matching user + paymentStatus
+    const allOrders = await Order.find({
+      customerId: userId,
+      paymentStatus: { $in: ["PAID", "PARTIAL PAID"] }
+    });
 
-    // Filter only upcoming orders based on combined eventDate + endTime
+    // Filter only upcoming based on eventDate + endTime
     const upcomingOrders = allOrders.filter(order => {
       if (!order.eventDate || !order.eventTime) return false;
 
       const [_, endTime] = order.eventTime.split(" - ");
+
       const combinedDateTime = moment(
         `${order.eventDate} ${endTime}`,
         "MMM DD, YYYY hh:mm A"
@@ -182,7 +225,7 @@ export const getUserUpcomingOrders = async (req, res) => {
       return combinedDateTime.isSameOrAfter(now);
     });
 
-    // ✅ Sort by createdAt DESC (most recently booked first)
+    // Sort DESC by createdAt
     upcomingOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     res.status(200).json({
@@ -190,6 +233,7 @@ export const getUserUpcomingOrders = async (req, res) => {
       data: upcomingOrders,
       length: upcomingOrders.length,
     });
+
   } catch (error) {
     console.error("Error fetching upcoming orders:", error);
     res.status(500).json({
