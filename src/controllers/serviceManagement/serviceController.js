@@ -242,113 +242,38 @@ export const updateService = async (req, res) => {
 
 export const getAllService = async (req, res) => {
   try {
-    const page = parseInt(req.query.page);
-    const limit = parseInt(req.query.limit);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
-
     const { search } = req.query;
 
-    // Build the match filter for search
-    const matchFilter = {};
+    const query = {};
+
     if (search) {
-      matchFilter.$or = [
-        { serviceName: { $regex: search, $options: "i" } },
-        { "categoryId.category": { $regex: search, $options: "i" } },
-        { "subCategoryId.subCategory": { $regex: search, $options: "i" } },
-        {
-          "subSubCategoryId.subSubCategory": { $regex: search, $options: "i" },
-        },
-        { "themeId.theme": { $regex: search, $options: "i" } },
-      ];
+      query.serviceName = { $regex: search, $options: "i" };
     }
 
-    // Base aggregation pipeline
-    const basePipeline = [
-      // Lookup for category
-      {
-        $lookup: {
-          from: "categories",
-          localField: "categoryId",
-          foreignField: "_id",
-          as: "categoryId",
-        },
-      },
-      { $unwind: { path: "$categoryId", preserveNullAndEmptyArrays: true } },
+    const services = await Service.find(query)
+      .select(
+        "serviceName offerPrice rating images categoryId subCategoryId subSubCategoryId themeId createdAt"
+      )
+      .populate({ path: "categoryId", select: "category" })
+      .populate({ path: "subCategoryId", select: "subCategory" })
+      .populate({ path: "subSubCategoryId", select: "subSubCategory" })
+      .populate({ path: "themeId", select: "theme" })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
 
-      // Lookup for subCategory
-      {
-        $lookup: {
-          from: "subcategories",
-          localField: "subCategoryId",
-          foreignField: "_id",
-          as: "subCategoryId",
-        },
-      },
-      { $unwind: { path: "$subCategoryId", preserveNullAndEmptyArrays: true } },
-
-      // Lookup for subSubCategory
-      {
-        $lookup: {
-          from: "subsubcategories",
-          localField: "subSubCategoryId",
-          foreignField: "_id",
-          as: "subSubCategoryId",
-        },
-      },
-      {
-        $unwind: {
-          path: "$subSubCategoryId",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-
-      // Lookup for theme
-      {
-        $lookup: {
-          from: "themes",
-          localField: "themeId",
-          foreignField: "_id",
-          as: "themeId",
-        },
-      },
-      { $unwind: { path: "$themeId", preserveNullAndEmptyArrays: true } },
-
-      // Apply search filter
-      { $match: matchFilter },
-
-      // Sort by createdAt
-      { $sort: { createdAt: -1 } },
-    ];
-
-    let services, total, totalPages;
-
-    if (page && limit) {
-      // ✅ Paginated query
-      services = await Service.aggregate([
-        ...basePipeline,
-        { $skip: skip },
-        { $limit: limit },
-      ]);
-
-      const totalDocs = await Service.aggregate([
-        ...basePipeline,
-        { $count: "total" },
-      ]);
-      total = totalDocs.length > 0 ? totalDocs[0].total : 0;
-      totalPages = Math.ceil(total / limit);
-    } else {
-      // ✅ Fetch all services
-      services = await Service.aggregate(basePipeline);
-      total = services.length;
-      totalPages = 1;
-    }
+    const total = await Service.countDocuments(query);
 
     return res.status(200).json({
       success: true,
       count: services.length,
       total,
-      page: page || 1,
-      totalPages,
+      page,
+      totalPages: Math.ceil(total / limit),
       data: services,
     });
   } catch (error) {
@@ -360,6 +285,127 @@ export const getAllService = async (req, res) => {
     });
   }
 };
+
+// export const getAllService = async (req, res) => {
+//   try {
+//     const page = parseInt(req.query.page);
+//     const limit = parseInt(req.query.limit);
+//     const skip = (page - 1) * limit;
+
+//     const { search } = req.query;
+
+//     // Build the match filter for search
+//     const matchFilter = {};
+//     if (search) {
+//       matchFilter.$or = [
+//         { serviceName: { $regex: search, $options: "i" } },
+//         { "categoryId.category": { $regex: search, $options: "i" } },
+//         { "subCategoryId.subCategory": { $regex: search, $options: "i" } },
+//         {
+//           "subSubCategoryId.subSubCategory": { $regex: search, $options: "i" },
+//         },
+//         { "themeId.theme": { $regex: search, $options: "i" } },
+//       ];
+//     }
+
+//     // Base aggregation pipeline
+//     const basePipeline = [
+//       // Lookup for category
+//       {
+//         $lookup: {
+//           from: "categories",
+//           localField: "categoryId",
+//           foreignField: "_id",
+//           as: "categoryId",
+//         },
+//       },
+//       { $unwind: { path: "$categoryId", preserveNullAndEmptyArrays: true } },
+
+//       // Lookup for subCategory
+//       {
+//         $lookup: {
+//           from: "subcategories",
+//           localField: "subCategoryId",
+//           foreignField: "_id",
+//           as: "subCategoryId",
+//         },
+//       },
+//       { $unwind: { path: "$subCategoryId", preserveNullAndEmptyArrays: true } },
+
+//       // Lookup for subSubCategory
+//       {
+//         $lookup: {
+//           from: "subsubcategories",
+//           localField: "subSubCategoryId",
+//           foreignField: "_id",
+//           as: "subSubCategoryId",
+//         },
+//       },
+//       {
+//         $unwind: {
+//           path: "$subSubCategoryId",
+//           preserveNullAndEmptyArrays: true,
+//         },
+//       },
+
+//       // Lookup for theme
+//       {
+//         $lookup: {
+//           from: "themes",
+//           localField: "themeId",
+//           foreignField: "_id",
+//           as: "themeId",
+//         },
+//       },
+//       { $unwind: { path: "$themeId", preserveNullAndEmptyArrays: true } },
+
+//       // Apply search filter
+//       { $match: matchFilter },
+
+//       // Sort by createdAt
+//       { $sort: { createdAt: -1 } },
+//     ];
+
+//     let services, total, totalPages;
+
+//     if (page && limit) {
+//       // ✅ Paginated query
+//       services = await Service.aggregate([
+//         ...basePipeline,
+//         { $skip: skip },
+//         { $limit: limit },
+//       ]);
+
+//       const totalDocs = await Service.aggregate([
+//         ...basePipeline,
+//         { $count: "total" },
+//       ]);
+//       total = totalDocs.length > 0 ? totalDocs[0].total : 0;
+//       totalPages = Math.ceil(total / limit);
+//     } else {
+//       // ✅ Fetch all services
+//       services = await Service.aggregate(basePipeline);
+//       total = services.length;
+//       totalPages = 1;
+//     }
+
+//     return res.status(200).json({
+//       success: true,
+//       count: services.length,
+//       total,
+//       page: page || 1,
+//       totalPages,
+//       data: services,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching services:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to fetch services",
+//       error: error.message,
+//     });
+//   }
+// };
 
 export const getServiceById = async (req, res) => {
   try {
